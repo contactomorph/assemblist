@@ -1,0 +1,19 @@
+[package]
+name = "assemblist"
+authors = ["Eddy Cizeron <eddy.cizeron@msn.com>"]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+keywords = ["builder"]
+categories = ["builder"]
+description = "Builder patterns."
+repository = "https://github.com/contactomorph/assemblist"
+readme = "README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+"quote" = "1.0.37"
+"proc-macro2" = "1.0.89"
+
