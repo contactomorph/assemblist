@@ -1,16 +1,38 @@
 use assemblist::assemblist;
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct Movie {
+    name: String,
+    release_year: usize,
+    director_name: String,
+}
+
 #[test]
-fn convert() {
+fn convert_function() {
     assemblist! {
-        fn a(s: String).b(j: usize).c(ok: bool) -> usize {
-            if ok { s.len() + j } else { 42 }
+        fn define_movie(name: String)
+            .released_in(release_year: usize)
+            .directed_by(director_name: String) -> crate::Movie
+        {
+            crate::Movie { name, release_year, director_name }
         }
 
-        fn x(i: usize) -> usize {
+        fn f(i: usize) -> usize {
             i + 5
         }
     }
 
-    let _v = a("ee".to_string()).b(23).c(true);
+    let movie = define_movie("The Lobster".to_string())
+        .released_in(2015)
+        .directed_by("Yorgos Lanthimos".to_string());
+    assert_eq!(
+        movie,
+        Movie {
+            name: "The Lobster".to_string(),
+            release_year: 2015,
+            director_name: "Yorgos Lanthimos".to_string()
+        }
+    );
+
+    assert_eq!(f(3), 8);
 }
