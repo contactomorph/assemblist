@@ -8,7 +8,7 @@
 //! The usual builder pattern is based on mutation and generally turns compile-time checks that
 //! the final object is complete to a runtime verification. Assemblist allows you to create immutable builders
 //! structured as method chains like in
-//! ```
+//! ```ignore
 //! fn define_movie(name: String)
 //!     .released_in(release_year: usize)
 //!     .directed_by(director_name: String) -> Movie
@@ -16,7 +16,6 @@
 //!     Movie { name, release_year, director_name }
 //! }
 //! ```
-
 mod parsing;
 mod sequentialization;
 mod types;
@@ -27,7 +26,7 @@ mod types;
  * The argument of the assemblist! macro is a scope containing method chains. A method chain looks like a function
  * where the name and argument list is split into multiple parts. Behind the scene assemblist actually creates as
  * many methods and generates their result type automatically.
- * ```
+ * ```ignore
  * fn define_movie(name: String)
  *     .released_in(release_year: usize)
  *     .directed_by(director_name: String) -> Movie
@@ -40,6 +39,15 @@ mod types;
 pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match parsing::parse(input) {
         Ok(trees) => sequentialization::sequentialize_trees(trees).into(),
+        Err(failure) => failure.to_stream().into(),
+    }
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn assemblist_format(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    match parsing::parse(input) {
+        Ok(trees) => sequentialization::format_trees(trees).into(),
         Err(failure) => failure.to_stream().into(),
     }
 }

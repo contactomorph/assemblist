@@ -1,10 +1,27 @@
 use proc_macro2::{Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
-use quote::quote_spanned;
+use quote::{quote, quote_spanned};
+use std::fmt::Debug;
 
 struct AssemblistField {
     name: Ident,
     ty: Vec<TokenTree>,
-    late: bool,
+    depth: usize,
+    max_depth: usize,
+}
+
+impl Debug for AssemblistField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ty = &self.ty;
+        write!(
+            f,
+            "{}: {}/{} {}",
+            self.name,
+            self.depth,
+            self.max_depth,
+            quote! {#(#ty)*}
+        )?;
+        Ok(())
+    }
 }
 
 pub struct AssemblistSignature {
@@ -39,7 +56,7 @@ impl AssemblistSignature {
         for field in &self.fields {
             tokens.push(TokenTree::Ident(field.name.clone()));
             tokens.push(TokenTree::Punct(Punct::new(':', Spacing::Alone)));
-            if !field.late {
+            if field.depth < field.max_depth {
                 tokens.push(TokenTree::Ident(Ident::new("self", self.name.span())));
                 tokens.push(TokenTree::Punct(Punct::new('.', Spacing::Alone)));
             }
@@ -52,7 +69,7 @@ impl AssemblistSignature {
     pub fn as_variable_declaration(&self) -> TokenStream {
         let mut tokens = Vec::<TokenTree>::new();
         for field in &self.fields {
-            if !field.late {
+            if field.depth < field.max_depth {
                 tokens.push(TokenTree::Ident(Ident::new("let", self.name.span())));
                 tokens.push(TokenTree::Ident(field.name.clone()));
                 tokens.push(TokenTree::Punct(Punct::new('=', Spacing::Alone)));
@@ -103,10 +120,43 @@ enum Step {
     NameFoundAndTypeStarting(Ident, Vec<TokenTree>),
 }
 
+impl Debug for AssemblistTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}(", self.name)?;
+        let mut first = true;
+        for field in &self.fields {
+            if first {
+                first = false;
+            } else {
+                write!(f, ", ")?
+            }
+            write!(f, "{:?}", field)?;
+        }
+        write!(f, ")")?;
+        match &self.content {
+            AssemblistTreeContent::SubTrees(subtrees) => {
+                write!(f, " {{ ")?;
+                let mut first = true;
+                for subtree in subtrees {
+                    if first {
+                        first = false;
+                    } else {
+                        write!(f, " | ")?
+                    }
+                    write!(f, "{:?}", subtree)?;
+                }
+                write!(f, "}}")?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
 impl AssemblistTree {
     pub fn from_sub_tree(
         name: Ident,
-        cumulated_arguments: Vec<Group>,
+        cumulated_arguments: (&Vec<Group>, Group),
         sub_tree: AssemblistTree,
     ) -> Self {
         let mut sub_trees = Vec::new();
@@ -116,12 +166,12 @@ impl AssemblistTree {
 
     pub fn from_sub_trees(
         name: Ident,
-        cumulated_arguments: Vec<Group>,
+        cumulated_arguments: (&Vec<Group>, Group),
         sub_trees: Vec<AssemblistTree>,
     ) -> Self {
         Self {
             name,
-            argument_group: cumulated_arguments.last().unwrap().stream(),
+            argument_group: cumulated_arguments.1.stream(),
             fields: Self::generate_fields(cumulated_arguments),
             content: AssemblistTreeContent::SubTrees(sub_trees),
         }
@@ -129,12 +179,12 @@ impl AssemblistTree {
 
     pub fn from_function(
         name: Ident,
-        cumulated_arguments: Vec<Group>,
+        cumulated_arguments: (&Vec<Group>, Group),
         definition: AssemblistDefinition,
     ) -> Self {
         Self {
             name,
-            argument_group: cumulated_arguments.last().unwrap().stream(),
+            argument_group: cumulated_arguments.1.stream(),
             fields: Self::generate_fields(cumulated_arguments),
             content: AssemblistTreeContent::Definition(definition),
         }
@@ -145,12 +195,13 @@ impl AssemblistTree {
         f_leaf: &mut impl FnMut(usize, AssemblistSignature, AssemblistDefinition) -> T,
         f_branch: &mut impl FnMut(usize, AssemblistSignature, Vec<T>) -> T,
     ) -> T {
-        self.visit_with_level(0, f_leaf, f_branch)
+        self.visit_with_depth(0, f_leaf, f_branch)
     }
 
     fn generate_fields_from_group(
-        argument_group: Group,
-        late: bool,
+        argument_group: &Group,
+        depth: usize,
+        max_depth: usize,
         fields: &mut Vec<AssemblistField>,
     ) {
         let mut step = Step::Starting;
@@ -175,7 +226,12 @@ impl AssemblistTree {
                 {
                     step = Step::Starting;
                     if 0 < ty.len() {
-                        fields.push(AssemblistField { name, ty, late })
+                        fields.push(AssemblistField {
+                            name,
+                            ty,
+                            depth,
+                            max_depth,
+                        })
                     }
                 }
                 (Step::NameFoundAndTypeStarting(name, mut ty), token) => {
@@ -185,23 +241,28 @@ impl AssemblistTree {
             }
         }
         if let Step::NameFoundAndTypeStarting(name, ty) = step {
-            fields.push(AssemblistField { name, ty, late });
+            fields.push(AssemblistField {
+                name,
+                ty,
+                depth,
+                max_depth,
+            });
         }
     }
 
-    fn generate_fields(cumulated_arguments: Vec<Group>) -> Vec<AssemblistField> {
+    fn generate_fields(cumulated_arguments: (&Vec<Group>, Group)) -> Vec<AssemblistField> {
         let mut fields = Vec::<AssemblistField>::new();
-        let group_count = cumulated_arguments.len();
-        for (i, argument_group) in cumulated_arguments.into_iter().enumerate() {
-            let late = i + 1 == group_count;
-            Self::generate_fields_from_group(argument_group, late, &mut fields);
+        let max_depth = cumulated_arguments.0.len();
+        for (depth, argument_group) in cumulated_arguments.0.into_iter().enumerate() {
+            Self::generate_fields_from_group(argument_group, depth, max_depth, &mut fields);
         }
+        Self::generate_fields_from_group(&cumulated_arguments.1, max_depth, max_depth, &mut fields);
         fields
     }
 
-    fn visit_with_level<T>(
+    fn visit_with_depth<T>(
         self,
-        level: usize,
+        depth: usize,
         f_leaf: &mut impl FnMut(usize, AssemblistSignature, AssemblistDefinition) -> T,
         f_branch: &mut impl FnMut(usize, AssemblistSignature, Vec<T>) -> T,
     ) -> T {
@@ -211,13 +272,13 @@ impl AssemblistTree {
             fields: self.fields,
         };
         match self.content {
-            AssemblistTreeContent::Definition(definition) => f_leaf(level, signature, definition),
+            AssemblistTreeContent::Definition(definition) => f_leaf(depth, signature, definition),
             AssemblistTreeContent::SubTrees(sub_trees) => {
                 let values = sub_trees
                     .into_iter()
-                    .map(|tree| tree.visit_with_level(level + 1, f_leaf, f_branch))
+                    .map(|tree| tree.visit_with_depth(depth + 1, f_leaf, f_branch))
                     .collect::<Vec<_>>();
-                f_branch(level, signature, values)
+                f_branch(depth, signature, values)
             }
         }
     }

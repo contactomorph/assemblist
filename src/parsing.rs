@@ -56,7 +56,7 @@ fn parse_definition(
 fn parse_assembly_tree(
     iter: &mut IntoIter,
     optional_function_name: Option<Ident>,
-    cumulated_arguments: &mut Vec<Group>,
+    cumulated_arguments: &Vec<Group>,
     mut last_span: Span,
 ) -> Result<AssemblistTree, LocalizedFailure> {
     let mut step = match optional_function_name {
@@ -81,33 +81,32 @@ fn parse_assembly_tree(
             }
             (Step::ArgsFound { name, arguments }, token) => {
                 let definition = parse_definition(iter, token)?;
-                let mut cumulated_arguments: Vec<Group> = cumulated_arguments.clone();
-                cumulated_arguments.push(arguments);
                 return Ok(AssemblistTree::from_function(
                     name,
-                    cumulated_arguments,
+                    (cumulated_arguments, arguments),
                     definition,
                 ));
             }
-            (
-                Step::ChainingFound {
-                    name: _,
-                    arguments: _,
-                },
-                TokenTree::Group(body),
-            ) if body.delimiter() == Delimiter::Brace => {
-                // let mut sub_iter = body.into_token_stream().into_iter();
-                // let sub_tree = parse_assembly_tree(&mut sub_iter, Step::FnFound, last_span)?;
-                // return Ok(AssemblistTree::from_sub_tree(name, signature, sub_tree))
-                unimplemented!();
+            (Step::ChainingFound { name, arguments }, TokenTree::Group(body))
+                if body.delimiter() == Delimiter::Brace =>
+            {
+                let mut new_cumulated_arguments = cumulated_arguments.clone();
+                new_cumulated_arguments.push(arguments.clone());
+                let sub_trees =
+                    parse_root(&mut body.stream().into_iter(), &new_cumulated_arguments)?;
+                return Ok(AssemblistTree::from_sub_trees(
+                    name,
+                    (cumulated_arguments, arguments),
+                    sub_trees,
+                ));
             }
             (Step::ChainingFound { name, arguments }, TokenTree::Ident(new_name)) => {
-                let mut cumulated_arguments = cumulated_arguments.clone();
-                cumulated_arguments.push(arguments);
+                let mut new_cumulated_arguments = cumulated_arguments.clone();
+                new_cumulated_arguments.push(arguments.clone());
                 let sub_tree =
-                    parse_assembly_tree(iter, Some(new_name), &mut cumulated_arguments, last_span)?;
+                    parse_assembly_tree(iter, Some(new_name), &new_cumulated_arguments, last_span)?;
                 let assembly_tree =
-                    AssemblistTree::from_sub_tree(name, cumulated_arguments, sub_tree);
+                    AssemblistTree::from_sub_tree(name, (cumulated_arguments, arguments), sub_tree);
                 return Ok(assembly_tree);
             }
             (_, token) => {
@@ -118,16 +117,16 @@ fn parse_assembly_tree(
     LocalizedFailure::new_err(last_span, "Unexpected end of stream")
 }
 
-pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
-    let input: TokenStream = input.into();
+fn parse_root(
+    iter: &mut IntoIter,
+    cumulated_arguments: &Vec<Group>,
+) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
     let mut alternatives = Vec::<AssemblistTree>::new();
-
-    let mut iter = input.into_iter();
     while let Some(token) = iter.next() {
         match token {
             TokenTree::Ident(ref ident) => {
                 if ident.to_string().as_str() == FN_IDENT {
-                    let tree = parse_assembly_tree(&mut iter, None, &mut Vec::new(), ident.span())?;
+                    let tree = parse_assembly_tree(iter, None, cumulated_arguments, ident.span())?;
                     alternatives.push(tree);
                 } else {
                     return LocalizedFailure::new_err(
@@ -143,4 +142,10 @@ pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistTree>, Loca
     }
 
     Ok(alternatives)
+}
+
+pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
+    let input: TokenStream = input.into();
+    let no_arguments = Vec::<Group>::new();
+    parse_root(&mut input.into_iter(), &no_arguments)
 }
