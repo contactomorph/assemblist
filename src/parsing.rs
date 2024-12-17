@@ -1,4 +1,4 @@
-use crate::types::{AssemblistDefinition, AssemblistTree, LocalizedFailure};
+use crate::tree::{AssemblistDefinition, AssemblistTree, LocalizedFailure};
 use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 
 const FN_IDENT: &'static str = "fn";

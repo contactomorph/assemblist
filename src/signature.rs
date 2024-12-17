@@ -9,28 +9,52 @@ struct AssemblistField {
     max_depth: usize,
 }
 
-impl Debug for AssemblistField {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let ty = &self.ty;
-        write!(
-            f,
-            "{}: {}/{} {}",
-            self.name,
-            self.depth,
-            self.max_depth,
-            quote! {#(#ty)*}
-        )?;
-        Ok(())
-    }
-}
-
 pub struct AssemblistSignature {
     name: Ident,
     argument_group: TokenStream,
     fields: Vec<AssemblistField>,
 }
 
+impl Debug for AssemblistSignature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}(", self.name)?;
+        let mut first = true;
+        for field in &self.fields {
+            if first {
+                first = false;
+            } else {
+                write!(f, ", ")?
+            }
+            let ty = &field.ty;
+            write!(
+                f,
+                "{}: {}/{} {}",
+                field.name,
+                field.depth,
+                field.max_depth,
+                quote! {#(#ty)*}
+            )?;
+        }
+        write!(f, ")")?;
+        Ok(())
+    }
+}
+
+enum Step {
+    Starting,
+    NameFound(Ident),
+    NameFoundAndTypeStarting(Ident, Vec<TokenTree>),
+}
+
 impl AssemblistSignature {
+    pub fn new(name: Ident, cumulated_arguments: (&Vec<Group>, Group)) -> AssemblistSignature {
+        Self {
+            name,
+            argument_group: cumulated_arguments.1.stream(),
+            fields: Self::generate_fields(cumulated_arguments),
+        }
+    }
+
     pub fn span(&self) -> Span {
         self.name.span()
     }
@@ -95,108 +119,6 @@ impl AssemblistSignature {
         let argument_group = self.argument_group.clone();
         quote_spanned! { span => #name(self, #argument_group) }
     }
-}
-
-pub struct AssemblistTree {
-    name: Ident,
-    fields: Vec<AssemblistField>,
-    argument_group: TokenStream,
-    content: AssemblistTreeContent,
-}
-
-pub struct AssemblistDefinition {
-    pub result_data: TokenStream,
-    pub body: Group,
-}
-
-enum AssemblistTreeContent {
-    Definition(AssemblistDefinition),
-    SubTrees(Vec<AssemblistTree>),
-}
-
-enum Step {
-    Starting,
-    NameFound(Ident),
-    NameFoundAndTypeStarting(Ident, Vec<TokenTree>),
-}
-
-impl Debug for AssemblistTree {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}(", self.name)?;
-        let mut first = true;
-        for field in &self.fields {
-            if first {
-                first = false;
-            } else {
-                write!(f, ", ")?
-            }
-            write!(f, "{:?}", field)?;
-        }
-        write!(f, ")")?;
-        match &self.content {
-            AssemblistTreeContent::SubTrees(subtrees) => {
-                write!(f, " {{ ")?;
-                let mut first = true;
-                for subtree in subtrees {
-                    if first {
-                        first = false;
-                    } else {
-                        write!(f, " | ")?
-                    }
-                    write!(f, "{:?}", subtree)?;
-                }
-                write!(f, "}}")?;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-}
-
-impl AssemblistTree {
-    pub fn from_sub_tree(
-        name: Ident,
-        cumulated_arguments: (&Vec<Group>, Group),
-        sub_tree: AssemblistTree,
-    ) -> Self {
-        let mut sub_trees = Vec::new();
-        sub_trees.push(sub_tree);
-        Self::from_sub_trees(name, cumulated_arguments, sub_trees)
-    }
-
-    pub fn from_sub_trees(
-        name: Ident,
-        cumulated_arguments: (&Vec<Group>, Group),
-        sub_trees: Vec<AssemblistTree>,
-    ) -> Self {
-        Self {
-            name,
-            argument_group: cumulated_arguments.1.stream(),
-            fields: Self::generate_fields(cumulated_arguments),
-            content: AssemblistTreeContent::SubTrees(sub_trees),
-        }
-    }
-
-    pub fn from_function(
-        name: Ident,
-        cumulated_arguments: (&Vec<Group>, Group),
-        definition: AssemblistDefinition,
-    ) -> Self {
-        Self {
-            name,
-            argument_group: cumulated_arguments.1.stream(),
-            fields: Self::generate_fields(cumulated_arguments),
-            content: AssemblistTreeContent::Definition(definition),
-        }
-    }
-
-    pub fn visit<T>(
-        self,
-        f_leaf: &mut impl FnMut(usize, AssemblistSignature, AssemblistDefinition) -> T,
-        f_branch: &mut impl FnMut(usize, AssemblistSignature, Vec<T>) -> T,
-    ) -> T {
-        self.visit_with_depth(0, f_leaf, f_branch)
-    }
 
     fn generate_fields_from_group(
         argument_group: &Group,
@@ -258,44 +180,5 @@ impl AssemblistTree {
         }
         Self::generate_fields_from_group(&cumulated_arguments.1, max_depth, max_depth, &mut fields);
         fields
-    }
-
-    fn visit_with_depth<T>(
-        self,
-        depth: usize,
-        f_leaf: &mut impl FnMut(usize, AssemblistSignature, AssemblistDefinition) -> T,
-        f_branch: &mut impl FnMut(usize, AssemblistSignature, Vec<T>) -> T,
-    ) -> T {
-        let signature = AssemblistSignature {
-            name: self.name,
-            argument_group: self.argument_group,
-            fields: self.fields,
-        };
-        match self.content {
-            AssemblistTreeContent::Definition(definition) => f_leaf(depth, signature, definition),
-            AssemblistTreeContent::SubTrees(sub_trees) => {
-                let values = sub_trees
-                    .into_iter()
-                    .map(|tree| tree.visit_with_depth(depth + 1, f_leaf, f_branch))
-                    .collect::<Vec<_>>();
-                f_branch(depth, signature, values)
-            }
-        }
-    }
-}
-
-pub struct LocalizedFailure {
-    span: Span,
-    message: &'static str,
-}
-
-impl LocalizedFailure {
-    pub fn new_err<T>(span: Span, message: &'static str) -> Result<T, Self> {
-        Err(Self { span, message })
-    }
-
-    pub fn to_stream(self) -> TokenStream {
-        let message = self.message;
-        quote_spanned! { self.span => compile_error!(#message) }
     }
 }

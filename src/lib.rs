@@ -18,7 +18,8 @@
 //! ```
 mod parsing;
 mod sequentialization;
-mod types;
+mod signature;
+mod tree;
 
 /**
  * A macro used to generate immutable builders for free functions.

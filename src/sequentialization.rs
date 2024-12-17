@@ -1,4 +1,5 @@
-use crate::types::{AssemblistDefinition, AssemblistSignature, AssemblistTree};
+use crate::signature::AssemblistSignature;
+use crate::tree::{AssemblistDefinition, AssemblistTree};
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 
