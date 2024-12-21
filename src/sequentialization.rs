@@ -23,7 +23,7 @@ fn sequentialize_leaf(
         let variable_decl = signature.as_variable_declaration();
         let signature = signature.as_declaration_with_self();
         quote_spanned! {
-            span => impl ResultType { pub fn #signature #result_data { #variable_decl #body } }
+            span => impl Output { pub fn #signature #result_data { #variable_decl #body } }
         }
     }
 }
@@ -46,13 +46,13 @@ fn sequentialize_branch(
         quote_spanned! {
             span =>
                 #visibility mod #name {
-                    pub struct ResultType {
+                    pub struct Output {
                         #type_content
                     }
                     #(#values)*
                 }
-                #prelude fn #signature -> #name::ResultType {
-                    #name::ResultType { #field_assignments }
+                #prelude fn #signature -> #name::Output {
+                    #name::Output { #field_assignments }
                 }
         }
     } else {
@@ -60,14 +60,14 @@ fn sequentialize_branch(
         quote_spanned! {
             span =>
                 pub mod #name {
-                    pub struct ResultType {
+                    pub struct Output {
                         #type_content
                     }
                     #(#values)*
                 }
-                impl ResultType {
-                    pub fn #signature -> #name::ResultType {
-                        #name::ResultType { #field_assignments }
+                impl Output {
+                    pub fn #signature -> #name::Output {
+                        #name::Output { #field_assignments }
                     }
                 }
         }
