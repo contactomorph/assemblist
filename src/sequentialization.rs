@@ -1,3 +1,4 @@
+use crate::prelude::AssemblistTreePrelude;
 use crate::signature::AssemblistSignature;
 use crate::tree::{AssemblistDefinition, AssemblistTree};
 use proc_macro2::TokenStream;
@@ -5,6 +6,7 @@ use quote::{quote, quote_spanned};
 
 fn sequentialize_leaf(
     depth: usize,
+    prelude: AssemblistTreePrelude,
     signature: AssemblistSignature,
     definition: AssemblistDefinition,
 ) -> TokenStream {
@@ -12,9 +14,10 @@ fn sequentialize_leaf(
     let result_data = definition.result_data;
     let body = definition.body.stream();
     if depth == 0 {
+        let prelude = prelude.as_complete_declaration();
         let signature = signature.as_declaration();
         quote_spanned! {
-            span => pub fn #signature #result_data { #body }
+            span => #prelude fn #signature #result_data { #body }
         }
     } else {
         let variable_decl = signature.as_variable_declaration();
@@ -27,6 +30,7 @@ fn sequentialize_leaf(
 
 fn sequentialize_branch(
     depth: usize,
+    prelude: AssemblistTreePrelude,
     signature: AssemblistSignature,
     values: Vec<TokenStream>,
 ) -> TokenStream {
@@ -36,16 +40,18 @@ fn sequentialize_branch(
     let field_assignments = signature.as_field_assignments();
 
     if depth == 0 {
+        let visibility = prelude.as_visibility_declaration();
+        let prelude = prelude.as_complete_declaration();
         let signature = signature.as_declaration();
         quote_spanned! {
             span =>
-                pub mod #name {
+                #visibility mod #name {
                     pub struct ResultType {
                         #type_content
                     }
                     #(#values)*
                 }
-                pub fn #signature -> #name::ResultType {
+                #prelude fn #signature -> #name::ResultType {
                     #name::ResultType { #field_assignments }
                 }
         }
@@ -72,8 +78,12 @@ pub fn sequentialize_trees(trees: Vec<AssemblistTree>) -> TokenStream {
     let mut output = TokenStream::new();
     for tree in trees {
         let stream = tree.visit(
-            &mut |depth, signature, definition| sequentialize_leaf(depth, signature, definition),
-            &mut |depth, signature, values| sequentialize_branch(depth, signature, values),
+            &mut |depth, prelude, signature, definition| {
+                sequentialize_leaf(depth, prelude, signature, definition)
+            },
+            &mut |depth, prelude, signature, values| {
+                sequentialize_branch(depth, prelude, signature, values)
+            },
         );
         output.extend(stream);
     }

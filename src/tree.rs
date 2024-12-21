@@ -1,9 +1,10 @@
-use crate::signature::AssemblistSignature;
+use crate::{prelude::AssemblistTreePrelude, signature::AssemblistSignature};
 use proc_macro2::{Group, Ident, Span, TokenStream};
 use quote::quote_spanned;
 use std::fmt::Debug;
 
 pub struct AssemblistTree {
+    prelude: AssemblistTreePrelude,
     signature: AssemblistSignature,
     content: AssemblistTreeContent,
 }
@@ -43,32 +44,37 @@ impl Debug for AssemblistTree {
 
 impl AssemblistTree {
     pub fn from_sub_tree(
+        prelude: AssemblistTreePrelude,
         name: Ident,
         cumulated_arguments: (&Vec<Group>, Group),
         sub_tree: AssemblistTree,
     ) -> Self {
         let mut sub_trees = Vec::new();
         sub_trees.push(sub_tree);
-        Self::from_sub_trees(name, cumulated_arguments, sub_trees)
+        Self::from_sub_trees(prelude, name, cumulated_arguments, sub_trees)
     }
 
     pub fn from_sub_trees(
+        prelude: AssemblistTreePrelude,
         name: Ident,
         cumulated_arguments: (&Vec<Group>, Group),
         sub_trees: Vec<AssemblistTree>,
     ) -> Self {
         Self {
+            prelude,
             signature: AssemblistSignature::new(name, cumulated_arguments),
             content: AssemblistTreeContent::SubTrees(sub_trees),
         }
     }
 
     pub fn from_function(
+        prelude: AssemblistTreePrelude,
         name: Ident,
         cumulated_arguments: (&Vec<Group>, Group),
         definition: AssemblistDefinition,
     ) -> Self {
         Self {
+            prelude,
             signature: AssemblistSignature::new(name, cumulated_arguments),
             content: AssemblistTreeContent::Definition(definition),
         }
@@ -76,8 +82,13 @@ impl AssemblistTree {
 
     pub fn visit<T>(
         self,
-        f_leaf: &mut impl FnMut(usize, AssemblistSignature, AssemblistDefinition) -> T,
-        f_branch: &mut impl FnMut(usize, AssemblistSignature, Vec<T>) -> T,
+        f_leaf: &mut impl FnMut(
+            usize,
+            AssemblistTreePrelude,
+            AssemblistSignature,
+            AssemblistDefinition,
+        ) -> T,
+        f_branch: &mut impl FnMut(usize, AssemblistTreePrelude, AssemblistSignature, Vec<T>) -> T,
     ) -> T {
         self.visit_with_depth(0, f_leaf, f_branch)
     }
@@ -85,19 +96,24 @@ impl AssemblistTree {
     fn visit_with_depth<T>(
         self,
         depth: usize,
-        f_leaf: &mut impl FnMut(usize, AssemblistSignature, AssemblistDefinition) -> T,
-        f_branch: &mut impl FnMut(usize, AssemblistSignature, Vec<T>) -> T,
+        f_leaf: &mut impl FnMut(
+            usize,
+            AssemblistTreePrelude,
+            AssemblistSignature,
+            AssemblistDefinition,
+        ) -> T,
+        f_branch: &mut impl FnMut(usize, AssemblistTreePrelude, AssemblistSignature, Vec<T>) -> T,
     ) -> T {
         match self.content {
             AssemblistTreeContent::Definition(definition) => {
-                f_leaf(depth, self.signature, definition)
+                f_leaf(depth, self.prelude, self.signature, definition)
             }
             AssemblistTreeContent::SubTrees(sub_trees) => {
                 let values = sub_trees
                     .into_iter()
                     .map(|tree| tree.visit_with_depth(depth + 1, f_leaf, f_branch))
                     .collect::<Vec<_>>();
-                f_branch(depth, self.signature, values)
+                f_branch(depth, self.prelude, self.signature, values)
             }
         }
     }

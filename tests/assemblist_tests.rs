@@ -40,7 +40,8 @@ fn convert_method_chain() {
 #[test]
 fn convert_method_alternative() {
     assemblist! {
-        fn define_movie(name: String).released_in(release_year: usize).{
+        #[doc(alias = "docs")]
+        pub(crate) fn define_movie(name: String).released_in(release_year: usize).{
             fn directed_by(director_name: String) -> crate::Movie {
                 crate::Movie { name, release_year, director_name }
             }

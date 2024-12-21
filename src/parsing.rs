@@ -1,4 +1,7 @@
-use crate::tree::{AssemblistDefinition, AssemblistTree, LocalizedFailure};
+use crate::{
+    prelude::AssemblistTreePrelude,
+    tree::{AssemblistDefinition, AssemblistTree, LocalizedFailure},
+};
 use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 
 const FN_IDENT: &'static str = "fn";
@@ -58,6 +61,7 @@ fn parse_assembly_tree(
     optional_function_name: Option<Ident>,
     cumulated_arguments: &Vec<Group>,
     mut last_span: Span,
+    prelude: AssemblistTreePrelude,
 ) -> Result<AssemblistTree, LocalizedFailure> {
     let mut step = match optional_function_name {
         None => Step::FnFound,
@@ -82,6 +86,7 @@ fn parse_assembly_tree(
             (Step::ArgsFound { name, arguments }, token) => {
                 let definition = parse_definition(iter, token)?;
                 return Ok(AssemblistTree::from_function(
+                    prelude,
                     name,
                     (cumulated_arguments, arguments),
                     definition,
@@ -95,6 +100,7 @@ fn parse_assembly_tree(
                 let sub_trees =
                     parse_root(&mut body.stream().into_iter(), &new_cumulated_arguments)?;
                 return Ok(AssemblistTree::from_sub_trees(
+                    prelude,
                     name,
                     (cumulated_arguments, arguments),
                     sub_trees,
@@ -103,10 +109,19 @@ fn parse_assembly_tree(
             (Step::ChainingFound { name, arguments }, TokenTree::Ident(new_name)) => {
                 let mut new_cumulated_arguments = cumulated_arguments.clone();
                 new_cumulated_arguments.push(arguments.clone());
-                let sub_tree =
-                    parse_assembly_tree(iter, Some(new_name), &new_cumulated_arguments, last_span)?;
-                let assembly_tree =
-                    AssemblistTree::from_sub_tree(name, (cumulated_arguments, arguments), sub_tree);
+                let sub_tree = parse_assembly_tree(
+                    iter,
+                    Some(new_name),
+                    &new_cumulated_arguments,
+                    last_span,
+                    prelude.make_sub_prelude(),
+                )?;
+                let assembly_tree = AssemblistTree::from_sub_tree(
+                    prelude,
+                    name,
+                    (cumulated_arguments, arguments),
+                    sub_tree,
+                );
                 return Ok(assembly_tree);
             }
             (_, token) => {
@@ -122,26 +137,50 @@ fn parse_root(
     cumulated_arguments: &Vec<Group>,
 ) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
     let mut alternatives = Vec::<AssemblistTree>::new();
+    let mut prelude = Vec::<TokenTree>::new();
     while let Some(token) = iter.next() {
         match token {
             TokenTree::Ident(ref ident) => {
                 if ident.to_string().as_str() == FN_IDENT {
-                    let tree = parse_assembly_tree(iter, None, cumulated_arguments, ident.span())?;
+                    let tree = parse_assembly_tree(
+                        iter,
+                        None,
+                        cumulated_arguments,
+                        ident.span(),
+                        AssemblistTreePrelude::new(prelude),
+                    )?;
                     alternatives.push(tree);
+                    prelude = Vec::<TokenTree>::new();
                 } else {
-                    return LocalizedFailure::new_err(
-                        token.span(),
-                        "Only function should be declared",
-                    );
+                    prelude.push(token);
                 }
             }
-            _ => {
-                return LocalizedFailure::new_err(token.span(), "Only function should be declared");
+            TokenTree::Group(ref group) if group.delimiter() == Delimiter::Brace => {
+                prelude.push(token);
+                return create_non_fn_error(&prelude);
             }
+            TokenTree::Punct(ref punct) if punct.as_char() == ';' => {
+                prelude.push(token);
+                return create_non_fn_error(&prelude);
+            }
+            _ => prelude.push(token),
         }
     }
 
+    if prelude.len() != 0 {
+        return create_non_fn_error(&prelude);
+    }
+
     Ok(alternatives)
+}
+
+fn create_non_fn_error(prelude: &Vec<TokenTree>) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
+    let first_span = prelude[0].span();
+    let last_span = prelude.last().unwrap().span();
+    LocalizedFailure::new_err(
+        first_span.join(last_span).unwrap(),
+        "Only function should be declared",
+    )
 }
 
 pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistTree>, LocalizedFailure> {

@@ -17,6 +17,7 @@
 //! }
 //! ```
 mod parsing;
+mod prelude;
 mod sequentialization;
 mod signature;
 mod tree;
