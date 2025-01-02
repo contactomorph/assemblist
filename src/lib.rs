@@ -16,11 +16,11 @@
 //!     Movie { name, release_year, director_name }
 //! }
 //! ```
+mod fn_tree;
 mod parsing;
 mod prelude;
 mod sequentialization;
 mod signature;
-mod tree;
 
 /**
  * A macro used to generate immutable builders for free functions.

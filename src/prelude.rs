@@ -3,27 +3,27 @@ use quote::quote_spanned;
 
 const PUB_IDENT: &'static str = "pub";
 
-pub struct AssemblistTreePrelude {
+pub struct AssemblistPrelude {
     content: Option<Vec<TokenTree>>,
-    visibility: AssemblistTreeVisibility,
+    visibility: AssemblistVisibility,
 }
 
 #[derive(Clone)]
-enum AssemblistTreeVisibility {
+enum AssemblistVisibility {
     Private,
     Public(Span),
     Rescricted(Group),
 }
 
-impl AssemblistTreePrelude {
-    pub fn new(content: Vec<TokenTree>) -> AssemblistTreePrelude {
-        AssemblistTreePrelude {
+impl AssemblistPrelude {
+    pub fn new(content: Vec<TokenTree>) -> AssemblistPrelude {
+        AssemblistPrelude {
             visibility: Self::extract_visibility(&content),
             content: Some(content),
         }
     }
-    pub fn make_sub_prelude(&self) -> AssemblistTreePrelude {
-        AssemblistTreePrelude {
+    pub fn make_sub_prelude(&self) -> AssemblistPrelude {
+        AssemblistPrelude {
             content: None,
             visibility: self.visibility.clone(),
         }
@@ -31,11 +31,11 @@ impl AssemblistTreePrelude {
 
     pub fn as_visibility_declaration(&self) -> TokenStream {
         match &self.visibility {
-            AssemblistTreeVisibility::Private => TokenStream::new(),
-            AssemblistTreeVisibility::Public(span) => {
+            AssemblistVisibility::Private => TokenStream::new(),
+            AssemblistVisibility::Public(span) => {
                 quote_spanned! { *span => pub }
             }
-            AssemblistTreeVisibility::Rescricted(group) => {
+            AssemblistVisibility::Rescricted(group) => {
                 quote_spanned! { group.span() => pub #group }
             }
         }
@@ -48,10 +48,10 @@ impl AssemblistTreePrelude {
         }
     }
 
-    fn extract_visibility(content: &Vec<TokenTree>) -> AssemblistTreeVisibility {
+    fn extract_visibility(content: &Vec<TokenTree>) -> AssemblistVisibility {
         let mut i = content.len();
         if i == 0 {
-            return AssemblistTreeVisibility::Private;
+            return AssemblistVisibility::Private;
         }
         i -= 1;
         loop {
@@ -60,11 +60,11 @@ impl AssemblistTreePrelude {
                     if group.delimiter() == Delimiter::Bracket
                         || group.delimiter() == Delimiter::Brace
                     {
-                        break AssemblistTreeVisibility::Private;
+                        break AssemblistVisibility::Private;
                     }
                 }
                 TokenTree::Punct(punct) if punct.as_char() == ';' => {
-                    break AssemblistTreeVisibility::Private
+                    break AssemblistVisibility::Private
                 }
                 TokenTree::Ident(ident) => {
                     if ident.to_string().as_str() == PUB_IDENT {
@@ -72,17 +72,17 @@ impl AssemblistTreePrelude {
                             let next = &content[i + 1];
                             if let TokenTree::Group(group) = next {
                                 if group.delimiter() == Delimiter::Parenthesis {
-                                    break AssemblistTreeVisibility::Rescricted(group.clone());
+                                    break AssemblistVisibility::Rescricted(group.clone());
                                 }
                             }
                         }
-                        break AssemblistTreeVisibility::Public(ident.span());
+                        break AssemblistVisibility::Public(ident.span());
                     }
                 }
                 _ => {}
             }
             if i == 0 {
-                break AssemblistTreeVisibility::Private;
+                break AssemblistVisibility::Private;
             }
             i -= 1;
         }

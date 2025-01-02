@@ -1,14 +1,14 @@
-use crate::prelude::AssemblistTreePrelude;
-use crate::signature::AssemblistSignature;
-use crate::tree::{AssemblistDefinition, AssemblistTree};
+use crate::fn_tree::{AssemblistFnDefinition, AssemblistFnTree};
+use crate::prelude::AssemblistPrelude;
+use crate::signature::AssemblistFnSignature;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 
 fn sequentialize_leaf(
     depth: usize,
-    prelude: AssemblistTreePrelude,
-    signature: AssemblistSignature,
-    definition: AssemblistDefinition,
+    prelude: AssemblistPrelude,
+    signature: AssemblistFnSignature,
+    definition: AssemblistFnDefinition,
 ) -> TokenStream {
     let span = signature.span();
     let result_data = definition.result_data;
@@ -30,8 +30,8 @@ fn sequentialize_leaf(
 
 fn sequentialize_branch(
     depth: usize,
-    prelude: AssemblistTreePrelude,
-    signature: AssemblistSignature,
+    prelude: AssemblistPrelude,
+    signature: AssemblistFnSignature,
     values: Vec<TokenStream>,
 ) -> TokenStream {
     let span = signature.span();
@@ -74,7 +74,7 @@ fn sequentialize_branch(
     }
 }
 
-pub fn sequentialize_trees(trees: Vec<AssemblistTree>) -> TokenStream {
+pub fn sequentialize_trees(trees: Vec<AssemblistFnTree>) -> TokenStream {
     let mut output = TokenStream::new();
     for tree in trees {
         let stream = tree.visit(
@@ -90,7 +90,7 @@ pub fn sequentialize_trees(trees: Vec<AssemblistTree>) -> TokenStream {
     output
 }
 
-pub fn format_trees(trees: Vec<AssemblistTree>) -> TokenStream {
+pub fn format_trees(trees: Vec<AssemblistFnTree>) -> TokenStream {
     let tokens = trees.into_iter().map(|tree| {
         let str = format!("{:?}", tree);
         proc_macro2::TokenTree::Literal(proc_macro2::Literal::string(str.as_str()))

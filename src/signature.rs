@@ -9,13 +9,13 @@ struct AssemblistField {
     max_depth: usize,
 }
 
-pub struct AssemblistSignature {
+pub struct AssemblistFnSignature {
     name: Ident,
     argument_group: TokenStream,
     fields: Vec<AssemblistField>,
 }
 
-impl Debug for AssemblistSignature {
+impl Debug for AssemblistFnSignature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}(", self.name)?;
         let mut first = true;
@@ -46,8 +46,8 @@ enum Step {
     NameFoundAndTypeStarting(Ident, Vec<TokenTree>),
 }
 
-impl AssemblistSignature {
-    pub fn new(name: Ident, cumulated_arguments: (&Vec<Group>, Group)) -> AssemblistSignature {
+impl AssemblistFnSignature {
+    pub fn new(name: Ident, cumulated_arguments: (&Vec<Group>, Group)) -> AssemblistFnSignature {
         Self {
             name,
             argument_group: cumulated_arguments.1.stream(),

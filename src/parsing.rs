@@ -1,10 +1,9 @@
-use crate::{
-    prelude::AssemblistTreePrelude,
-    tree::{AssemblistDefinition, AssemblistTree, LocalizedFailure},
-};
+use crate::fn_tree::{AssemblistFnDefinition, AssemblistFnTree, LocalizedFailure};
+use crate::prelude::AssemblistPrelude;
 use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 
 const FN_IDENT: &'static str = "fn";
+const ONLY_FN_MESSAGE: &'static str = "Only functions should be declared in this scope.";
 
 enum Step {
     FnFound,
@@ -31,12 +30,12 @@ fn try_extract_body(token: TokenTree, tokens: &mut Vec<TokenTree>) -> Option<Gro
 fn parse_definition(
     iter: &mut IntoIter,
     first_token: TokenTree,
-) -> Result<AssemblistDefinition, LocalizedFailure> {
+) -> Result<AssemblistFnDefinition, LocalizedFailure> {
     let mut last_span = first_token.span();
     let mut tokens = Vec::<TokenTree>::new();
 
     if let Some(body) = try_extract_body(first_token, &mut tokens) {
-        let definition = AssemblistDefinition {
+        let definition = AssemblistFnDefinition {
             body,
             result_data: TokenStream::from_iter(tokens),
         };
@@ -46,7 +45,7 @@ fn parse_definition(
     while let Some(token) = iter.next() {
         last_span = token.span();
         if let Some(body) = try_extract_body(token, &mut tokens) {
-            let definition = AssemblistDefinition {
+            let definition = AssemblistFnDefinition {
                 body,
                 result_data: TokenStream::from_iter(tokens),
             };
@@ -61,8 +60,8 @@ fn parse_assembly_tree(
     optional_function_name: Option<Ident>,
     cumulated_arguments: &Vec<Group>,
     mut last_span: Span,
-    prelude: AssemblistTreePrelude,
-) -> Result<AssemblistTree, LocalizedFailure> {
+    prelude: AssemblistPrelude,
+) -> Result<AssemblistFnTree, LocalizedFailure> {
     let mut step = match optional_function_name {
         None => Step::FnFound,
         Some(name) => Step::NameFound { name },
@@ -85,7 +84,7 @@ fn parse_assembly_tree(
             }
             (Step::ArgsFound { name, arguments }, token) => {
                 let definition = parse_definition(iter, token)?;
-                return Ok(AssemblistTree::from_function(
+                return Ok(AssemblistFnTree::from_function(
                     prelude,
                     name,
                     (cumulated_arguments, arguments),
@@ -99,7 +98,7 @@ fn parse_assembly_tree(
                 new_cumulated_arguments.push(arguments.clone());
                 let sub_trees =
                     parse_root(&mut body.stream().into_iter(), &new_cumulated_arguments)?;
-                return Ok(AssemblistTree::from_sub_trees(
+                return Ok(AssemblistFnTree::from_sub_trees(
                     prelude,
                     name,
                     (cumulated_arguments, arguments),
@@ -116,7 +115,7 @@ fn parse_assembly_tree(
                     last_span,
                     prelude.make_sub_prelude(),
                 )?;
-                let assembly_tree = AssemblistTree::from_sub_tree(
+                let assembly_tree = AssemblistFnTree::from_sub_tree(
                     prelude,
                     name,
                     (cumulated_arguments, arguments),
@@ -135,8 +134,8 @@ fn parse_assembly_tree(
 fn parse_root(
     iter: &mut IntoIter,
     cumulated_arguments: &Vec<Group>,
-) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
-    let mut alternatives = Vec::<AssemblistTree>::new();
+) -> Result<Vec<AssemblistFnTree>, LocalizedFailure> {
+    let mut alternatives = Vec::<AssemblistFnTree>::new();
     let mut prelude = Vec::<TokenTree>::new();
     while let Some(token) = iter.next() {
         match token {
@@ -147,7 +146,7 @@ fn parse_root(
                         None,
                         cumulated_arguments,
                         ident.span(),
-                        AssemblistTreePrelude::new(prelude),
+                        AssemblistPrelude::new(prelude),
                     )?;
                     alternatives.push(tree);
                     prelude = Vec::<TokenTree>::new();
@@ -157,33 +156,33 @@ fn parse_root(
             }
             TokenTree::Group(ref group) if group.delimiter() == Delimiter::Brace => {
                 prelude.push(token);
-                return create_non_fn_error(&prelude);
+                return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE);
             }
             TokenTree::Punct(ref punct) if punct.as_char() == ';' => {
                 prelude.push(token);
-                return create_non_fn_error(&prelude);
+                return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE);
             }
             _ => prelude.push(token),
         }
     }
 
     if prelude.len() != 0 {
-        return create_non_fn_error(&prelude);
+        return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE);
     }
 
     Ok(alternatives)
 }
 
-fn create_non_fn_error(prelude: &Vec<TokenTree>) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
+fn create_invalid_item_error<T>(
+    prelude: &Vec<TokenTree>,
+    message: &'static str,
+) -> Result<Vec<T>, LocalizedFailure> {
     let first_span = prelude[0].span();
     let last_span = prelude.last().unwrap().span();
-    LocalizedFailure::new_err(
-        first_span.join(last_span).unwrap(),
-        "Only function should be declared",
-    )
+    LocalizedFailure::new_err(first_span.join(last_span).unwrap(), message)
 }
 
-pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistTree>, LocalizedFailure> {
+pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistFnTree>, LocalizedFailure> {
     let input: TokenStream = input.into();
     let no_arguments = Vec::<Group>::new();
     parse_root(&mut input.into_iter(), &no_arguments)
