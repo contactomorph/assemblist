@@ -1,10 +1,14 @@
 use crate::fn_tree::{AssemblistFnDefinition, AssemblistFnTree, LocalizedFailure};
+use crate::item_tree::{AssemblistImplTree, AssemblistItemTree};
 use crate::joining_spans::join_spans_of;
 use crate::prelude::AssemblistPrelude;
 use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 
 const FN_IDENT: &'static str = "fn";
+const IMPL_IDENT: &'static str = "impl";
 const ONLY_FN_MESSAGE: &'static str = "Only functions should be declared in this scope.";
+const ONLY_FN_IMPL_MESSAGE: &'static str =
+    "Only functions and implementations should be declared in this scope.";
 
 enum Step {
     FnFound,
@@ -91,8 +95,11 @@ fn parse_assembly_tree(
             {
                 let mut new_cumulated_arguments = cumulated_arguments.clone();
                 new_cumulated_arguments.push(arguments.clone());
-                let sub_trees =
-                    parse_root(&mut body.stream().into_iter(), &new_cumulated_arguments)?;
+                let sub_trees = parse_items(
+                    &mut body.stream().into_iter(),
+                    &new_cumulated_arguments,
+                    None,
+                )?;
                 return Ok(AssemblistFnTree::from_sub_trees(
                     prelude,
                     name,
@@ -126,16 +133,22 @@ fn parse_assembly_tree(
     LocalizedFailure::new_err(last_span, "Unexpected end of stream")
 }
 
-fn parse_root(
+fn parse_items<I>(
     iter: &mut IntoIter,
     cumulated_arguments: &Vec<Group>,
-) -> Result<Vec<AssemblistFnTree>, LocalizedFailure> {
-    let mut alternatives = Vec::<AssemblistFnTree>::new();
+    convert_impl_to_item: Option<&fn(AssemblistImplTree) -> I>,
+) -> Result<Vec<I>, LocalizedFailure>
+where
+    AssemblistFnTree: Into<I>,
+{
+    let mut alternatives = Vec::<I>::new();
     let mut prelude = Vec::<TokenTree>::new();
     while let Some(token) = iter.next() {
         match token {
             TokenTree::Ident(ref ident) => {
-                if ident.to_string().as_str() == FN_IDENT {
+                let keyword = ident.to_string();
+                let keyword = keyword.as_str();
+                if keyword == FN_IDENT {
                     let tree = parse_assembly_tree(
                         iter,
                         None,
@@ -143,26 +156,33 @@ fn parse_root(
                         ident.span(),
                         AssemblistPrelude::new(prelude),
                     )?;
-                    alternatives.push(tree);
+                    alternatives.push(tree.into());
                     prelude = Vec::<TokenTree>::new();
+                } else if keyword == IMPL_IDENT {
+                    return match convert_impl_to_item {
+                        None => create_invalid_item_error(&prelude, ONLY_FN_MESSAGE),
+                        Some(_conv) => {
+                            todo!()
+                        }
+                    };
                 } else {
                     prelude.push(token);
                 }
             }
             TokenTree::Group(ref group) if group.delimiter() == Delimiter::Brace => {
                 prelude.push(token);
-                return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE);
+                return create_invalid_item_error(&prelude, ONLY_FN_IMPL_MESSAGE);
             }
             TokenTree::Punct(ref punct) if punct.as_char() == ';' => {
                 prelude.push(token);
-                return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE);
+                return create_invalid_item_error(&prelude, ONLY_FN_IMPL_MESSAGE);
             }
             _ => prelude.push(token),
         }
     }
 
     if prelude.len() != 0 {
-        return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE);
+        return create_invalid_item_error(&prelude, ONLY_FN_IMPL_MESSAGE);
     }
 
     Ok(alternatives)
@@ -176,8 +196,9 @@ fn create_invalid_item_error<T>(
     LocalizedFailure::new_err(span, message)
 }
 
-pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistFnTree>, LocalizedFailure> {
+pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistItemTree>, LocalizedFailure> {
     let input: TokenStream = input.into();
     let no_arguments = Vec::<Group>::new();
-    parse_root(&mut input.into_iter(), &no_arguments)
+    let to_item = &(AssemblistItemTree::Impl as fn(i: AssemblistImplTree) -> AssemblistItemTree);
+    parse_items(&mut input.into_iter(), &no_arguments, Some(&to_item))
 }

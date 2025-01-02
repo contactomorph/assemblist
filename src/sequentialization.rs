@@ -1,4 +1,5 @@
-use crate::fn_tree::{AssemblistFnDefinition, AssemblistFnTree};
+use crate::fn_tree::AssemblistFnDefinition;
+use crate::item_tree::AssemblistItemTree;
 use crate::prelude::AssemblistPrelude;
 use crate::signature::AssemblistFnSignature;
 use proc_macro2::TokenStream;
@@ -74,25 +75,35 @@ fn sequentialize_branch(
     }
 }
 
-pub fn sequentialize_trees(trees: Vec<AssemblistFnTree>) -> TokenStream {
+pub fn sequentialize_trees(trees: Vec<AssemblistItemTree>) -> TokenStream {
     let mut output = TokenStream::new();
     for tree in trees {
-        let stream = tree.visit(
-            &mut |depth, prelude, signature, definition| {
-                sequentialize_leaf(depth, prelude, signature, definition)
-            },
-            &mut |depth, prelude, signature, values| {
-                sequentialize_branch(depth, prelude, signature, values)
-            },
-        );
+        let stream = match tree {
+            AssemblistItemTree::Fn(fn_tree) => fn_tree.visit(
+                &mut |depth, prelude, signature, definition| {
+                    sequentialize_leaf(depth, prelude, signature, definition)
+                },
+                &mut |depth, prelude, signature, values| {
+                    sequentialize_branch(depth, prelude, signature, values)
+                },
+            ),
+            AssemblistItemTree::Impl(_impl_tree) => {
+                todo!()
+            }
+        };
         output.extend(stream);
     }
     output
 }
 
-pub fn format_trees(trees: Vec<AssemblistFnTree>) -> TokenStream {
+pub fn format_trees(trees: Vec<AssemblistItemTree>) -> TokenStream {
     let tokens = trees.into_iter().map(|tree| {
-        let str = format!("{:?}", tree);
+        let str = match tree {
+            AssemblistItemTree::Fn(fn_tree) => format!("{:?}", fn_tree),
+            AssemblistItemTree::Impl(_impl_tree) => {
+                todo!()
+            }
+        };
         proc_macro2::TokenTree::Literal(proc_macro2::Literal::string(str.as_str()))
     });
     let output: proc_macro2::TokenStream = quote! { #(#tokens)* };

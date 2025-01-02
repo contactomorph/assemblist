@@ -17,6 +17,7 @@
 //! }
 //! ```
 mod fn_tree;
+mod item_tree;
 mod joining_spans;
 mod parsing;
 mod prelude;
