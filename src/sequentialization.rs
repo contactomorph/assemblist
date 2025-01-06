@@ -40,7 +40,7 @@ fn sequentialize_branch(
     let field_assignments = signature.as_field_assignments();
 
     if depth == 0 {
-        let visibility = prelude.as_visibility_declaration();
+        let visibility = prelude.get_visibility_declaration();
         let prelude = prelude.as_complete_declaration();
         let signature = signature.as_declaration();
         quote_spanned! {

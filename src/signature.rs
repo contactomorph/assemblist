@@ -2,6 +2,8 @@ use proc_macro2::{Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned};
 use std::fmt::Debug;
 
+use crate::joining_spans::join_spans;
+
 struct AssemblistField {
     name: Ident,
     ty: Vec<TokenTree>,
@@ -13,6 +15,7 @@ pub struct AssemblistFnSignature {
     name: Ident,
     argument_group: TokenStream,
     fields: Vec<AssemblistField>,
+    span: Span,
 }
 
 impl Debug for AssemblistFnSignature {
@@ -49,6 +52,7 @@ enum Step {
 impl AssemblistFnSignature {
     pub fn new(name: Ident, cumulated_arguments: (&Vec<Group>, Group)) -> AssemblistFnSignature {
         Self {
+            span: join_spans(name.span(), cumulated_arguments.1.span()),
             name,
             argument_group: cumulated_arguments.1.stream(),
             fields: Self::generate_fields(cumulated_arguments),
@@ -56,7 +60,7 @@ impl AssemblistFnSignature {
     }
 
     pub fn span(&self) -> Span {
-        self.name.span()
+        self.span
     }
 
     pub fn name(&self) -> Ident {

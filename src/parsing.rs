@@ -1,4 +1,5 @@
 use crate::fn_tree::{AssemblistFnDefinition, AssemblistFnTree, LocalizedFailure};
+use crate::joining_spans::join_spans_of;
 use crate::prelude::AssemblistPrelude;
 use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 
@@ -113,7 +114,7 @@ fn parse_assembly_tree(
                     Some(new_name),
                     &new_cumulated_arguments,
                     last_span,
-                    prelude.make_sub_prelude(),
+                    prelude.reduce_to_visibility(),
                 )?;
                 let assembly_tree = AssemblistFnTree::from_sub_tree(
                     prelude,
@@ -177,9 +178,8 @@ fn create_invalid_item_error<T>(
     prelude: &Vec<TokenTree>,
     message: &'static str,
 ) -> Result<Vec<T>, LocalizedFailure> {
-    let first_span = prelude[0].span();
-    let last_span = prelude.last().unwrap().span();
-    LocalizedFailure::new_err(first_span.join(last_span).unwrap(), message)
+    let span = join_spans_of(&prelude[0], prelude.last().unwrap());
+    LocalizedFailure::new_err(span, message)
 }
 
 pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistFnTree>, LocalizedFailure> {

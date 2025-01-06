@@ -1,4 +1,6 @@
-use crate::{prelude::AssemblistPrelude, signature::AssemblistFnSignature};
+use crate::{
+    joining_spans::join_spans, prelude::AssemblistPrelude, signature::AssemblistFnSignature,
+};
 use proc_macro2::{Group, Ident, Span, TokenStream};
 use quote::quote_spanned;
 use std::fmt::Debug;
@@ -7,6 +9,7 @@ pub struct AssemblistFnTree {
     prelude: AssemblistPrelude,
     signature: AssemblistFnSignature,
     content: AssemblistFnTreeContent,
+    span: Span,
 }
 
 pub struct AssemblistFnDefinition {
@@ -60,10 +63,16 @@ impl AssemblistFnTree {
         cumulated_arguments: (&Vec<Group>, Group),
         sub_trees: Vec<AssemblistFnTree>,
     ) -> Self {
+        let first_span = prelude.span().unwrap_or(name.span());
+        let last_span = sub_trees
+            .last()
+            .map(|t| t.span)
+            .unwrap_or(cumulated_arguments.1.span());
         Self {
             prelude,
             signature: AssemblistFnSignature::new(name, cumulated_arguments),
             content: AssemblistFnTreeContent::SubTrees(sub_trees),
+            span: join_spans(first_span, last_span),
         }
     }
 
@@ -73,11 +82,18 @@ impl AssemblistFnTree {
         cumulated_arguments: (&Vec<Group>, Group),
         definition: AssemblistFnDefinition,
     ) -> Self {
+        let first_span = prelude.span().unwrap_or(name.span());
+        let last_span = definition.body.span();
         Self {
             prelude,
             signature: AssemblistFnSignature::new(name, cumulated_arguments),
             content: AssemblistFnTreeContent::Definition(definition),
+            span: join_spans(first_span, last_span),
         }
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     pub fn visit<T>(

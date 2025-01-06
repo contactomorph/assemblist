@@ -1,6 +1,8 @@
 use proc_macro2::{Delimiter, Group, Span, TokenStream, TokenTree};
 use quote::quote_spanned;
 
+use crate::joining_spans::join_spans_of;
+
 const PUB_IDENT: &'static str = "pub";
 
 pub struct AssemblistPrelude {
@@ -22,14 +24,32 @@ impl AssemblistPrelude {
             content: Some(content),
         }
     }
-    pub fn make_sub_prelude(&self) -> AssemblistPrelude {
+
+    pub fn span(&self) -> Option<Span> {
+        match &self.content {
+            None => None,
+            Some(tokens) => {
+                if let Some(first) = tokens.first() {
+                    if let Some(last) = tokens.last() {
+                        Some(join_spans_of(first, last))
+                    } else {
+                        Some(first.span())
+                    }
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn reduce_to_visibility(&self) -> AssemblistPrelude {
         AssemblistPrelude {
             content: None,
             visibility: self.visibility.clone(),
         }
     }
 
-    pub fn as_visibility_declaration(&self) -> TokenStream {
+    pub fn get_visibility_declaration(&self) -> TokenStream {
         match &self.visibility {
             AssemblistVisibility::Private => TokenStream::new(),
             AssemblistVisibility::Public(span) => {
@@ -44,7 +64,7 @@ impl AssemblistPrelude {
     pub fn as_complete_declaration(self) -> TokenStream {
         match self.content {
             Some(token_trees) => TokenStream::from_iter(token_trees.into_iter()),
-            None => Self::as_visibility_declaration(&self),
+            None => Self::get_visibility_declaration(&self),
         }
     }
 
