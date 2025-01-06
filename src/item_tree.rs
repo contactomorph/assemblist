@@ -1,7 +1,9 @@
 use proc_macro2::{Span, TokenTree};
 use std::fmt::Debug;
 
-use crate::{fn_tree::AssemblistFnTree, prelude::AssemblistPrelude};
+use crate::fn_tree::AssemblistFnTree;
+use crate::joining_spans::join_spans;
+use crate::prelude::AssemblistPrelude;
 
 pub struct AssemblistImplTree {
     pub prelude: AssemblistPrelude,
@@ -39,7 +41,7 @@ impl AssemblistImplTree {
             prelude,
             name,
             sub_trees,
-            span: first_span.join(last_span).unwrap(),
+            span: join_spans(first_span, last_span),
         }
     }
 

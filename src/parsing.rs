@@ -54,7 +54,7 @@ fn parse_definition(
     LocalizedFailure::new_err(last_span, "Unexpected end of stream")
 }
 
-fn parse_assembly_tree(
+fn parse_assemblist_fn_tree(
     iter: &mut IntoIter,
     optional_function_name: Option<Ident>,
     cumulated_arguments: &Vec<Group>,
@@ -110,7 +110,7 @@ fn parse_assembly_tree(
             (Step::ChainingFound { name, arguments }, TokenTree::Ident(new_name)) => {
                 let mut new_cumulated_arguments = cumulated_arguments.clone();
                 new_cumulated_arguments.push(arguments.clone());
-                let sub_tree = parse_assembly_tree(
+                let sub_tree = parse_assemblist_fn_tree(
                     iter,
                     Some(new_name),
                     &new_cumulated_arguments,
@@ -133,6 +133,39 @@ fn parse_assembly_tree(
     LocalizedFailure::new_err(last_span, "Unexpected end of stream")
 }
 
+fn parse_assemblist_impl_tree(
+    iter: &mut IntoIter,
+    mut last_span: Span,
+    prelude: AssemblistPrelude,
+) -> Result<AssemblistImplTree, LocalizedFailure> {
+    let mut tokens = Vec::<TokenTree>::new();
+    while let Some(token) = iter.next() {
+        last_span = token.span();
+        match token {
+            TokenTree::Group(body) if body.delimiter() == Delimiter::Brace => {
+                if tokens.is_empty() {
+                    return LocalizedFailure::new_err(
+                        last_span,
+                        "Implementation should have a name.",
+                    );
+                }
+                let first_token = tokens.remove(0);
+                let no_arguments = Vec::<Group>::new();
+                let mut body_iter = body.stream().into_iter();
+                let sub_trees =
+                    parse_items::<AssemblistFnTree>(&mut body_iter, &no_arguments, None)?;
+                let tree = AssemblistImplTree::new(prelude, (first_token, tokens), sub_trees);
+                return Ok(tree);
+            }
+            TokenTree::Punct(punct) if punct.as_char() == ';' => {
+                return LocalizedFailure::new_err(last_span, "Implementation should have a body.");
+            }
+            _ => tokens.push(token),
+        }
+    }
+    LocalizedFailure::new_err(last_span, "Bof")
+}
+
 fn parse_items<I>(
     iter: &mut IntoIter,
     cumulated_arguments: &Vec<Group>,
@@ -149,7 +182,7 @@ where
                 let keyword = ident.to_string();
                 let keyword = keyword.as_str();
                 if keyword == FN_IDENT {
-                    let tree = parse_assembly_tree(
+                    let tree = parse_assemblist_fn_tree(
                         iter,
                         None,
                         cumulated_arguments,
@@ -159,10 +192,16 @@ where
                     alternatives.push(tree.into());
                     prelude = Vec::<TokenTree>::new();
                 } else if keyword == IMPL_IDENT {
-                    return match convert_impl_to_item {
-                        None => create_invalid_item_error(&prelude, ONLY_FN_MESSAGE),
-                        Some(_conv) => {
-                            todo!()
+                    match convert_impl_to_item {
+                        None => return create_invalid_item_error(&prelude, ONLY_FN_MESSAGE),
+                        Some(conv) => {
+                            let tree = parse_assemblist_impl_tree(
+                                iter,
+                                ident.span(),
+                                AssemblistPrelude::new(prelude),
+                            )?;
+                            alternatives.push(conv(tree));
+                            prelude = Vec::<TokenTree>::new();
                         }
                     };
                 } else {

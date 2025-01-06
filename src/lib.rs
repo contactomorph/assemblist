@@ -25,11 +25,11 @@ mod sequentialization;
 mod signature;
 
 /**
- * A macro used to generate immutable builders for free functions.
+ * A macro used to generate immutable builders for functions and methods.
  *
- * The argument of the assemblist! macro is a scope containing method chains. A method chain looks like a function
- * where the name and argument list is split into multiple parts. Behind the scene assemblist actually creates as
- * many methods and generates their result type automatically.
+ * The argument of the assemblist! macro is a scope containing either method chains or implementations containing
+ * method chains. A method chain looks like a function where the name and argument list are split into multiple parts.
+ * Behind the scene assemblist actually creates as many disctinct methods and generates their result type automatically.
  * ```ignore
  * fn define_movie(name: String)
  *     .released_in(release_year: usize)
@@ -38,6 +38,19 @@ mod signature;
  *   Movie { name, release_year, director_name }
  * }
  * ```
+ * Here is a similar chain method declared inside an impl scope:
+ * ```ignore
+ * impl MovieMaker {
+ *   fn define_movie(name: String)
+ *       .released_in(release_year: usize)
+ *       .directed_by(director_name: String) -> Movie
+ *   {
+ *     Movie { name, release_year, director_name }
+ *   }
+ * }
+ * ```
+ * Note that the latter pattern is only valid for inherent implementations.
+ * You cannot add method chains to trait implementations.
  */
 #[proc_macro]
 pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
