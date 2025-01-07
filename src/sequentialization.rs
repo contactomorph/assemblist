@@ -11,7 +11,7 @@ fn sequentialize_leaf(
     definition: AssemblistFnDefinition,
 ) -> TokenStream {
     let span = signature.span();
-    let result_data = definition.result_data;
+    let result_data = TokenStream::from_iter(definition.result_data);
     let body = definition.body.stream();
     if depth == 0 {
         let prelude = prelude.as_complete_declaration();

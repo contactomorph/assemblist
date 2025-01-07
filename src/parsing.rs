@@ -33,23 +33,17 @@ fn parse_definition(
     first_token: TokenTree,
 ) -> Result<AssemblistFnDefinition, LocalizedFailure> {
     let mut last_span = first_token.span();
-    let mut tokens = Vec::<TokenTree>::new();
+    let mut result_data = Vec::<TokenTree>::new();
 
-    if let Some(body) = try_extract_body(first_token, &mut tokens) {
-        let definition = AssemblistFnDefinition {
-            body,
-            result_data: TokenStream::from_iter(tokens),
-        };
+    if let Some(body) = try_extract_body(first_token, &mut result_data) {
+        let definition = AssemblistFnDefinition { body, result_data };
         return Ok(definition);
     }
 
     while let Some(token) = iter.next() {
         last_span = token.span();
-        if let Some(body) = try_extract_body(token, &mut tokens) {
-            let definition = AssemblistFnDefinition {
-                body,
-                result_data: TokenStream::from_iter(tokens),
-            };
+        if let Some(body) = try_extract_body(token, &mut result_data) {
+            let definition = AssemblistFnDefinition { body, result_data };
             return Ok(definition);
         }
     }

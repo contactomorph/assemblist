@@ -1,7 +1,7 @@
 use crate::{
     joining_spans::join_spans, prelude::AssemblistPrelude, signature::AssemblistFnSignature,
 };
-use proc_macro2::{Group, Ident, Span, TokenStream};
+use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::quote_spanned;
 use std::fmt::Debug;
 
@@ -13,7 +13,7 @@ pub struct AssemblistFnTree {
 }
 
 pub struct AssemblistFnDefinition {
-    pub result_data: TokenStream,
+    pub result_data: Vec<TokenTree>,
     pub body: Group,
 }
 
