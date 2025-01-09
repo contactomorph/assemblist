@@ -147,6 +147,6 @@ impl LocalizedFailure {
 
     pub fn to_stream(self) -> TokenStream {
         let message = self.message;
-        quote_spanned! { self.span => compile_error!(#message) }
+        quote_spanned! { self.span => compile_error!(#message); }
     }
 }

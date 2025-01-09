@@ -6,6 +6,7 @@ use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenSt
 
 const FN_IDENT: &'static str = "fn";
 const IMPL_IDENT: &'static str = "impl";
+const FOR_IDENT: &'static str = "for";
 const ONLY_FN_MESSAGE: &'static str = "Only functions should be declared in this scope.";
 const ONLY_FN_IMPL_MESSAGE: &'static str =
     "Only functions and implementations should be declared in this scope.";
@@ -159,6 +160,12 @@ fn parse_assemblist_impl_tree(
             }
             TokenTree::Punct(punct) if punct.as_char() == ';' => {
                 return LocalizedFailure::new_err(last_span, "Implementation should have a body.");
+            }
+            TokenTree::Ident(ident) if ident.to_string().as_str() == FOR_IDENT => {
+                return LocalizedFailure::new_err(
+                    last_span,
+                    "Only inherent implementations are allowed.",
+                );
             }
             _ => tokens.push(token),
         }

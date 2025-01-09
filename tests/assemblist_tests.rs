@@ -1,4 +1,5 @@
 use assemblist::assemblist;
+use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Movie {
