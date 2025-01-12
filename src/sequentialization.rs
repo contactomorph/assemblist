@@ -2,7 +2,7 @@ use crate::item_tree::AssemblistItemTree;
 use crate::prelude::AssemblistPrelude;
 use crate::signature::AssemblistFnSignature;
 use crate::{fn_tree::AssemblistFnDefinition, item_tree::AssemblistImplTree};
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned};
 
 fn sequentialize_leaf(
@@ -42,6 +42,8 @@ fn sequentialize_hierachical_part_of_root_branch(
     quote_spanned! {
         span =>
             #visibility mod #name {
+                #![allow(unused_imports)]
+                use super::*;
                 pub struct Output {
                     #type_content
                 }
@@ -68,12 +70,27 @@ fn sequentialize_flat_part_of_root_branch(
     }
 }
 
+fn repeat_super_keyword(n: usize, span: Span) -> TokenStream {
+    let mut tokens = Vec::<TokenTree>::new();
+    if 0 < n {
+        for _ in 0..n {
+            tokens.push(TokenTree::Ident(Ident::new("super", span)));
+            tokens.push(TokenTree::Punct(Punct::new(':', Spacing::Joint)));
+            tokens.push(TokenTree::Punct(Punct::new(':', Spacing::Alone)));
+        }
+    }
+    let mut stream = TokenStream::new();
+    stream.extend(tokens);
+    stream
+}
+
 fn sequentialize_upper_branch(
     signature: AssemblistFnSignature,
     values: Vec<TokenStream>,
 ) -> TokenStream {
     let span = signature.span();
     let name = signature.name();
+    let super_stream = repeat_super_keyword(signature.depth(), span);
     let type_content = signature.as_type_content();
     let field_assignments = signature.as_field_assignments();
 
@@ -81,6 +98,8 @@ fn sequentialize_upper_branch(
     quote_spanned! {
         span =>
             pub mod #name {
+                #![allow(unused_imports)]
+                use #super_stream*;
                 pub struct Output {
                     #type_content
                 }

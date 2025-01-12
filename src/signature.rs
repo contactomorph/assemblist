@@ -13,6 +13,7 @@ struct AssemblistField {
 
 pub struct AssemblistFnSignature {
     name: Ident,
+    depth: usize,
     argument_group: TokenStream,
     fields: Vec<AssemblistField>,
     span: Span,
@@ -54,6 +55,7 @@ impl AssemblistFnSignature {
         Self {
             span: join_spans(name.span(), cumulated_arguments.1.span()),
             name,
+            depth: cumulated_arguments.0.len(),
             argument_group: cumulated_arguments.1.stream(),
             fields: Self::generate_fields(cumulated_arguments),
         }
@@ -65,6 +67,10 @@ impl AssemblistFnSignature {
 
     pub fn name(&self) -> Ident {
         self.name.clone()
+    }
+
+    pub fn depth(&self) -> usize {
+        self.depth
     }
 
     pub fn as_type_content(&self) -> TokenStream {
@@ -95,13 +101,14 @@ impl AssemblistFnSignature {
     }
 
     pub fn as_variable_declaration(&self) -> TokenStream {
+        let span = self.name.span();
         let mut tokens = Vec::<TokenTree>::new();
         for field in &self.fields {
             if field.depth < field.max_depth {
-                tokens.push(TokenTree::Ident(Ident::new("let", self.name.span())));
+                tokens.push(TokenTree::Ident(Ident::new("let", span)));
                 tokens.push(TokenTree::Ident(field.name.clone()));
                 tokens.push(TokenTree::Punct(Punct::new('=', Spacing::Alone)));
-                tokens.push(TokenTree::Ident(Ident::new("self", self.name.span())));
+                tokens.push(TokenTree::Ident(Ident::new("self", span)));
                 tokens.push(TokenTree::Punct(Punct::new('.', Spacing::Alone)));
                 tokens.push(TokenTree::Ident(field.name.clone()));
                 tokens.push(TokenTree::Punct(Punct::new(';', Spacing::Alone)));

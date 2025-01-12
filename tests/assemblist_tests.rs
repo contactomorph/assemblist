@@ -13,9 +13,9 @@ fn convert_method_chain() {
     assemblist! {
         fn define_movie(name: String)
             .released_in(release_year: usize)
-            .directed_by(director_name: String) -> crate::Movie
+            .directed_by(director_name: String) -> Movie
         {
-            crate::Movie { name, release_year, director_name }
+            Movie { name, release_year, director_name }
         }
 
         fn f(i: usize) -> usize {
@@ -43,11 +43,11 @@ fn convert_method_alternative() {
     assemblist! {
         #[doc(alias = "docs")]
         pub(crate) fn define_movie(name: String).released_in(release_year: usize).{
-            fn directed_by(director_name: String) -> crate::Movie {
-                crate::Movie { name, release_year, director_name }
+            fn directed_by(director_name: String) -> Movie {
+                Movie { name, release_year, director_name }
             }
-            fn directed_by_me() -> crate::Movie {
-                crate::Movie { name, release_year, director_name: "me".to_string() }
+            fn directed_by_me() -> Movie {
+                Movie { name, release_year, director_name: "me".to_string() }
             }
         }
     };
@@ -77,6 +77,7 @@ fn convert_method_alternative() {
 }
 
 mod nested_module {
+    use super::Movie;
     use assemblist::assemblist;
 
     pub struct MovieMaker;
@@ -85,9 +86,9 @@ mod nested_module {
         impl MovieMaker {
             pub fn define_movie(name: String)
                 .released_in(release_year: usize)
-                .directed_by(director_name: String) -> crate::Movie
+                .directed_by(director_name: String) -> Movie
             {
-                crate::Movie { name, release_year, director_name }
+                Movie { name, release_year, director_name }
             }
         }
     }
