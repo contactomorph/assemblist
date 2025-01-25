@@ -1,5 +1,6 @@
-use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenTree};
+use proc_macro2::{token_stream::IntoIter, Delimiter, Ident, Span, TokenTree};
 
+use crate::concepts::deck::{AssemblistDeck, AssemblistGenericArg};
 use crate::concepts::fn_tree::AssemblistFnTree;
 use crate::concepts::prelude::AssemblistPrelude;
 use crate::concepts::signature::AssemblistFnSignature;
@@ -9,18 +10,31 @@ use super::common::{
     create_invalid_item_error, FN_IDENT, IMPL_IDENT, ONLY_FN_IMPL_MESSAGE, ONLY_FN_MESSAGE,
 };
 use super::fn_def::parse_definition;
+use super::generic_arg::parse_generic_arguments;
 
 enum Step {
     FnFound,
-    NameFound { name: Ident },
-    ArgsFound { name: Ident, arguments: Group },
-    ChainingFound { name: Ident, arguments: Group },
+    NameFound {
+        name: Ident,
+    },
+    GenericNameFound {
+        name: Ident,
+        generics: Vec<AssemblistGenericArg>,
+    },
+    ArgsFound {
+        name: Ident,
+        deck: AssemblistDeck,
+    },
+    ChainingFound {
+        name: Ident,
+        deck: AssemblistDeck,
+    },
 }
 
 pub fn parse_assemblist_fn_tree(
     iter: &mut IntoIter,
     optional_function_name: Option<Ident>,
-    cumulated_arguments: &Vec<Group>,
+    decks: &Vec<AssemblistDeck>,
     mut last_span: Span,
     prelude: AssemblistPrelude,
 ) -> Result<AssemblistFnTree, LocalizedFailure> {
@@ -34,48 +48,55 @@ pub fn parse_assemblist_fn_tree(
             (Step::FnFound, TokenTree::Ident(name)) => {
                 step = Step::NameFound { name };
             }
+            (Step::NameFound { name }, TokenTree::Punct(punct)) if punct.as_char() == '<' => {
+                let generics = parse_generic_arguments(iter, last_span)?;
+                step = Step::GenericNameFound { name, generics }
+            }
             (Step::NameFound { name }, TokenTree::Group(arguments))
                 if arguments.delimiter() == Delimiter::Parenthesis =>
             {
-                step = Step::ArgsFound { name, arguments }
+                let deck = AssemblistDeck::new_non_generic(arguments);
+                step = Step::ArgsFound { name, deck }
             }
-            (Step::ArgsFound { name, arguments }, TokenTree::Punct(punct))
-                if punct.as_char() == '.' =>
+            (Step::GenericNameFound { name, generics }, TokenTree::Group(arguments))
+                if arguments.delimiter() == Delimiter::Parenthesis =>
             {
-                step = Step::ChainingFound { name, arguments }
+                let deck = AssemblistDeck::new_generic(generics, arguments);
+                step = Step::ArgsFound { name, deck }
             }
-            (Step::ArgsFound { name, arguments }, token) => {
+            (Step::ArgsFound { name, deck }, TokenTree::Punct(punct)) if punct.as_char() == '.' => {
+                step = Step::ChainingFound { name, deck }
+            }
+            (Step::ArgsFound { name, deck }, token) => {
                 let definition = parse_definition(iter, token)?;
-                let signature = AssemblistFnSignature::new(name, (cumulated_arguments, arguments));
+                let signature = AssemblistFnSignature::new(name, (decks, deck));
                 return Ok(AssemblistFnTree::from_function(
                     prelude, signature, definition,
                 ));
             }
-            (Step::ChainingFound { name, arguments }, TokenTree::Group(body))
+            (Step::ChainingFound { name, deck }, TokenTree::Group(body))
                 if body.delimiter() == Delimiter::Brace =>
             {
-                let mut new_cumulated_arguments = cumulated_arguments.clone();
-                new_cumulated_arguments.push(arguments.clone());
-                let sub_trees = parse_assemblist_fn_trees(
-                    &mut body.stream().into_iter(),
-                    &new_cumulated_arguments,
-                )?;
-                let signature = AssemblistFnSignature::new(name, (cumulated_arguments, arguments));
+                let mut new_decks: Vec<_> = decks.clone();
+                new_decks.push(deck.clone());
+                let sub_trees =
+                    parse_assemblist_fn_trees(&mut body.stream().into_iter(), &new_decks)?;
+                let signature = AssemblistFnSignature::new(name, (decks, deck));
                 return Ok(AssemblistFnTree::from_sub_trees(
                     prelude, signature, sub_trees,
                 ));
             }
-            (Step::ChainingFound { name, arguments }, TokenTree::Ident(new_name)) => {
-                let mut new_cumulated_arguments = cumulated_arguments.clone();
-                new_cumulated_arguments.push(arguments.clone());
+            (Step::ChainingFound { name, deck }, TokenTree::Ident(new_name)) => {
+                let mut new_decks: Vec<_> = decks.clone();
+                new_decks.push(deck.clone());
                 let sub_tree = parse_assemblist_fn_tree(
                     iter,
                     Some(new_name),
-                    &new_cumulated_arguments,
+                    &new_decks,
                     last_span,
                     prelude.reduce_to_visibility(),
                 )?;
-                let signature = AssemblistFnSignature::new(name, (cumulated_arguments, arguments));
+                let signature = AssemblistFnSignature::new(name, (decks, deck));
                 let assembly_tree = AssemblistFnTree::from_sub_tree(prelude, signature, sub_tree);
                 return Ok(assembly_tree);
             }
@@ -89,7 +110,7 @@ pub fn parse_assemblist_fn_tree(
 
 pub fn parse_assemblist_fn_trees(
     iter: &mut IntoIter,
-    cumulated_arguments: &Vec<Group>,
+    decks: &Vec<AssemblistDeck>,
 ) -> Result<Vec<AssemblistFnTree>, LocalizedFailure> {
     let mut alternatives = Vec::new();
     let mut prelude = Vec::<TokenTree>::new();
@@ -102,7 +123,7 @@ pub fn parse_assemblist_fn_trees(
                     let tree = parse_assemblist_fn_tree(
                         iter,
                         None,
-                        cumulated_arguments,
+                        decks,
                         ident.span(),
                         AssemblistPrelude::new(prelude),
                     )?;
