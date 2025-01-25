@@ -1,5 +1,6 @@
-use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Span, TokenStream, TokenTree};
+use proc_macro2::{token_stream::IntoIter, Delimiter, Span, TokenStream, TokenTree};
 
+use crate::concepts::deck::AssemblistArgumentDeck;
 use crate::concepts::item_tree::{AssemblistImplTree, AssemblistItemTree};
 use crate::concepts::prelude::AssemblistPrelude;
 use crate::tools::localized_failure::LocalizedFailure;
@@ -26,9 +27,9 @@ fn parse_assemblist_impl_tree(
                     );
                 }
                 let first_token = tokens.remove(0);
-                let no_arguments = Vec::<Group>::new();
+                let no_decks = Vec::<AssemblistArgumentDeck>::new();
                 let mut body_iter = body.stream().into_iter();
-                let sub_trees = parse_assemblist_fn_trees(&mut body_iter, &no_arguments)?;
+                let sub_trees = parse_assemblist_fn_trees(&mut body_iter, &no_decks)?;
                 let tree = AssemblistImplTree::new(prelude, (first_token, tokens), sub_trees);
                 return Ok(tree);
             }
@@ -49,7 +50,7 @@ fn parse_assemblist_impl_tree(
 
 fn parse_items(
     iter: &mut IntoIter,
-    cumulated_arguments: &Vec<Group>,
+    decks: &Vec<AssemblistArgumentDeck>,
 ) -> Result<Vec<AssemblistItemTree>, LocalizedFailure> {
     let mut alternatives = Vec::new();
     let mut prelude = Vec::<TokenTree>::new();
@@ -62,7 +63,7 @@ fn parse_items(
                     let tree = parse_assemblist_fn_tree(
                         iter,
                         None,
-                        cumulated_arguments,
+                        decks,
                         ident.span(),
                         AssemblistPrelude::new(prelude),
                     )?;
@@ -101,6 +102,6 @@ fn parse_items(
 
 pub fn parse(input: proc_macro::TokenStream) -> Result<Vec<AssemblistItemTree>, LocalizedFailure> {
     let input: TokenStream = input.into();
-    let no_arguments = Vec::<Group>::new();
-    parse_items(&mut input.into_iter(), &no_arguments)
+    let no_decks = Vec::<AssemblistArgumentDeck>::new();
+    parse_items(&mut input.into_iter(), &no_decks)
 }

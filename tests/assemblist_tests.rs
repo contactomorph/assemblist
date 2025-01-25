@@ -108,3 +108,27 @@ fn convert_impl() {
         }
     );
 }
+
+// pub struct StrHelper;
+
+// assemblist! {
+//     impl StrHelper {
+//         pub fn replace_in(string: &str)
+//             .occurrences_of(pattern: &str)
+//             .with(to: &str)
+//             .at_most(n: usize)
+//             .times() -> String
+//         {
+//             string.replacen(pattern, to, n)
+//         }
+//     }
+// }
+
+// pub fn ee() {
+//     let s = "this is old";
+//     let resp = StrHelper::replace_in(s)
+//         .occurrences_of("cookie monster")
+//         .with("little lamb")
+//         .at_most(10)
+//         .times();
+// }

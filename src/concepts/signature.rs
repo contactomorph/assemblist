@@ -1,7 +1,8 @@
-use proc_macro2::{Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned};
 use std::fmt::Debug;
 
+use super::deck::AssemblistArgumentDeck;
 use crate::tools::joining_spans::join_spans;
 
 struct AssemblistField {
@@ -51,12 +52,15 @@ enum Step {
 }
 
 impl AssemblistFnSignature {
-    pub fn new(name: Ident, cumulated_arguments: (&Vec<Group>, Group)) -> AssemblistFnSignature {
+    pub fn new(
+        name: Ident,
+        cumulated_arguments: (&Vec<AssemblistArgumentDeck>, AssemblistArgumentDeck),
+    ) -> AssemblistFnSignature {
         Self {
-            span: join_spans(name.span(), cumulated_arguments.1.span()),
+            span: join_spans(name.span(), cumulated_arguments.1.args_span()),
             name,
             depth: cumulated_arguments.0.len(),
-            argument_group: cumulated_arguments.1.stream(),
+            argument_group: cumulated_arguments.1.args_stream(),
             fields: Self::generate_fields(cumulated_arguments),
         }
     }
@@ -132,13 +136,13 @@ impl AssemblistFnSignature {
     }
 
     fn generate_fields_from_group(
-        argument_group: &Group,
+        deck: &AssemblistArgumentDeck,
         depth: usize,
         max_depth: usize,
         fields: &mut Vec<AssemblistField>,
     ) {
         let mut step = Step::Starting;
-        for token in argument_group.stream() {
+        for token in deck.args_stream() {
             match (step, token) {
                 (Step::Starting, TokenTree::Ident(ident)) => {
                     step = Step::NameFound(ident);
@@ -183,13 +187,15 @@ impl AssemblistFnSignature {
         }
     }
 
-    fn generate_fields(cumulated_arguments: (&Vec<Group>, Group)) -> Vec<AssemblistField> {
+    fn generate_fields(
+        decks: (&Vec<AssemblistArgumentDeck>, AssemblistArgumentDeck),
+    ) -> Vec<AssemblistField> {
         let mut fields = Vec::<AssemblistField>::new();
-        let max_depth = cumulated_arguments.0.len();
-        for (depth, argument_group) in cumulated_arguments.0.into_iter().enumerate() {
-            Self::generate_fields_from_group(argument_group, depth, max_depth, &mut fields);
+        let max_depth = decks.0.len();
+        for (depth, deck) in decks.0.into_iter().enumerate() {
+            Self::generate_fields_from_group(deck, depth, max_depth, &mut fields);
         }
-        Self::generate_fields_from_group(&cumulated_arguments.1, max_depth, max_depth, &mut fields);
+        Self::generate_fields_from_group(&decks.1, max_depth, max_depth, &mut fields);
         fields
     }
 }
