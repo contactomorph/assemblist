@@ -1,9 +1,12 @@
-use crate::item_tree::AssemblistItemTree;
-use crate::prelude::AssemblistPrelude;
-use crate::signature::AssemblistFnSignature;
-use crate::{fn_tree::AssemblistFnDefinition, item_tree::AssemblistImplTree};
 use proc_macro2::{Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned};
+
+use crate::concepts::{
+    fn_tree::AssemblistFnDefinition,
+    item_tree::{AssemblistImplTree, AssemblistItemTree},
+    prelude::AssemblistPrelude,
+    signature::AssemblistFnSignature,
+};
 
 fn sequentialize_leaf(
     depth: usize,

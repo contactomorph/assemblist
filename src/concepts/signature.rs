@@ -2,7 +2,7 @@ use proc_macro2::{Group, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{quote, quote_spanned};
 use std::fmt::Debug;
 
-use crate::joining_spans::join_spans;
+use crate::tools::joining_spans::join_spans;
 
 struct AssemblistField {
     name: Ident,

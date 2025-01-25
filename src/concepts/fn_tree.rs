@@ -1,9 +1,8 @@
-use crate::{
-    joining_spans::join_spans, prelude::AssemblistPrelude, signature::AssemblistFnSignature,
-};
-use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
-use quote::quote_spanned;
+use proc_macro2::{Group, Ident, Span, TokenTree};
 use std::fmt::Debug;
+
+use super::{prelude::AssemblistPrelude, signature::AssemblistFnSignature};
+use crate::tools::joining_spans::join_spans;
 
 pub struct AssemblistFnTree {
     prelude: AssemblistPrelude,
@@ -132,21 +131,5 @@ impl AssemblistFnTree {
                 f_branch(depth, self.prelude, self.signature, values)
             }
         }
-    }
-}
-
-pub struct LocalizedFailure {
-    span: Span,
-    message: &'static str,
-}
-
-impl LocalizedFailure {
-    pub fn new_err<T>(span: Span, message: &'static str) -> Result<T, Self> {
-        Err(Self { span, message })
-    }
-
-    pub fn to_stream(self) -> TokenStream {
-        let message = self.message;
-        quote_spanned! { self.span => compile_error!(#message); }
     }
 }

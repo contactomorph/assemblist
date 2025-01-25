@@ -16,13 +16,12 @@
 //!     Movie { name, release_year, director_name }
 //! }
 //! ```
-mod fn_tree;
-mod item_tree;
-mod joining_spans;
+mod concepts;
 mod parsing;
-mod prelude;
 mod sequentialization;
-mod signature;
+mod tools;
+
+use parsing::item_tree::parse;
 
 /**
  * A macro used to generate immutable builders for functions and methods.
@@ -54,7 +53,7 @@ mod signature;
  */
 #[proc_macro]
 pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match parsing::parse(input) {
+    match parse(input) {
         Ok(trees) => sequentialization::sequentialize_trees(trees).into(),
         Err(failure) => failure.to_stream().into(),
     }
@@ -63,7 +62,7 @@ pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[doc(hidden)]
 #[proc_macro]
 pub fn assemblist_format(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match parsing::parse(input) {
+    match parse(input) {
         Ok(trees) => sequentialization::format_trees(trees).into(),
         Err(failure) => failure.to_stream().into(),
     }

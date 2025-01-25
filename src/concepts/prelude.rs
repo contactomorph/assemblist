@@ -1,7 +1,7 @@
 use proc_macro2::{Delimiter, Group, Span, TokenStream, TokenTree};
 use quote::quote_spanned;
 
-use crate::joining_spans::join_spans_of;
+use crate::tools::joining_spans::join_spans_of;
 
 const PUB_IDENT: &'static str = "pub";
 
