@@ -2,6 +2,7 @@ use proc_macro2::{token_stream::IntoIter, Delimiter, Group, Ident, Span, TokenTr
 
 use crate::concepts::fn_tree::AssemblistFnTree;
 use crate::concepts::prelude::AssemblistPrelude;
+use crate::concepts::signature::AssemblistFnSignature;
 use crate::tools::localized_failure::LocalizedFailure;
 
 use super::common::{
@@ -45,11 +46,9 @@ pub fn parse_assemblist_fn_tree(
             }
             (Step::ArgsFound { name, arguments }, token) => {
                 let definition = parse_definition(iter, token)?;
+                let signature = AssemblistFnSignature::new(name, (cumulated_arguments, arguments));
                 return Ok(AssemblistFnTree::from_function(
-                    prelude,
-                    name,
-                    (cumulated_arguments, arguments),
-                    definition,
+                    prelude, signature, definition,
                 ));
             }
             (Step::ChainingFound { name, arguments }, TokenTree::Group(body))
@@ -61,11 +60,9 @@ pub fn parse_assemblist_fn_tree(
                     &mut body.stream().into_iter(),
                     &new_cumulated_arguments,
                 )?;
+                let signature = AssemblistFnSignature::new(name, (cumulated_arguments, arguments));
                 return Ok(AssemblistFnTree::from_sub_trees(
-                    prelude,
-                    name,
-                    (cumulated_arguments, arguments),
-                    sub_trees,
+                    prelude, signature, sub_trees,
                 ));
             }
             (Step::ChainingFound { name, arguments }, TokenTree::Ident(new_name)) => {
@@ -78,12 +75,8 @@ pub fn parse_assemblist_fn_tree(
                     last_span,
                     prelude.reduce_to_visibility(),
                 )?;
-                let assembly_tree = AssemblistFnTree::from_sub_tree(
-                    prelude,
-                    name,
-                    (cumulated_arguments, arguments),
-                    sub_tree,
-                );
+                let signature = AssemblistFnSignature::new(name, (cumulated_arguments, arguments));
+                let assembly_tree = AssemblistFnTree::from_sub_tree(prelude, signature, sub_tree);
                 return Ok(assembly_tree);
             }
             (_, token) => {

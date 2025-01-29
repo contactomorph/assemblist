@@ -1,4 +1,4 @@
-use proc_macro2::{Group, Ident, Span, TokenTree};
+use proc_macro2::{Group, Span, TokenTree};
 use std::fmt::Debug;
 
 use super::{prelude::AssemblistPrelude, signature::AssemblistFnSignature};
@@ -47,29 +47,24 @@ impl Debug for AssemblistFnTree {
 impl AssemblistFnTree {
     pub fn from_sub_tree(
         prelude: AssemblistPrelude,
-        name: Ident,
-        cumulated_arguments: (&Vec<Group>, Group),
+        signature: AssemblistFnSignature,
         sub_tree: AssemblistFnTree,
     ) -> Self {
         let mut sub_trees = Vec::new();
         sub_trees.push(sub_tree);
-        Self::from_sub_trees(prelude, name, cumulated_arguments, sub_trees)
+        Self::from_sub_trees(prelude, signature, sub_trees)
     }
 
     pub fn from_sub_trees(
         prelude: AssemblistPrelude,
-        name: Ident,
-        cumulated_arguments: (&Vec<Group>, Group),
+        signature: AssemblistFnSignature,
         sub_trees: Vec<AssemblistFnTree>,
     ) -> Self {
-        let first_span = prelude.span().unwrap_or(name.span());
-        let last_span = sub_trees
-            .last()
-            .map(|t| t.span)
-            .unwrap_or(cumulated_arguments.1.span());
+        let first_span = prelude.span().unwrap_or(signature.span());
+        let last_span = sub_trees.last().map(|t| t.span).unwrap_or(signature.span());
         Self {
             prelude,
-            signature: AssemblistFnSignature::new(name, cumulated_arguments),
+            signature,
             content: AssemblistFnTreeContent::SubTrees(sub_trees),
             span: join_spans(first_span, last_span),
         }
@@ -77,15 +72,14 @@ impl AssemblistFnTree {
 
     pub fn from_function(
         prelude: AssemblistPrelude,
-        name: Ident,
-        cumulated_arguments: (&Vec<Group>, Group),
+        signature: AssemblistFnSignature,
         definition: AssemblistFnDefinition,
     ) -> Self {
-        let first_span = prelude.span().unwrap_or(name.span());
+        let first_span = prelude.span().unwrap_or(signature.span());
         let last_span = definition.body.span();
         Self {
             prelude,
-            signature: AssemblistFnSignature::new(name, cumulated_arguments),
+            signature,
             content: AssemblistFnTreeContent::Definition(definition),
             span: join_spans(first_span, last_span),
         }
