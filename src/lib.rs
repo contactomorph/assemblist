@@ -17,6 +17,7 @@
 //! }
 //! ```
 mod concepts;
+mod model;
 mod parsing;
 mod sequentialization;
 mod tools;
