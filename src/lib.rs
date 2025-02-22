@@ -20,8 +20,10 @@ mod concepts;
 mod parsing;
 mod sequentialization;
 mod tools;
+mod transformation;
 
 use parsing::item_tree::parse;
+use transformation::transform;
 
 /**
  * A macro used to generate immutable builders for functions and methods.
@@ -66,4 +68,9 @@ pub fn assemblist_format(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         Ok(trees) => sequentialization::format_trees(trees).into(),
         Err(failure) => failure.to_stream().into(),
     }
+}
+
+#[proc_macro]
+pub fn assemblist_trans(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    transform(input)
 }
