@@ -1,10 +1,11 @@
+use quote::ToTokens;
 use syn::parse::discouraged::Speculative;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Paren};
 use syn::{
-    parenthesized, Attribute, Error, FnArg, Generics, Ident, Pat, PatType, PatWild, Receiver,
-    Result, ReturnType, Token,
+    parenthesized, Attribute, Error, FnArg, Generics, Ident, Pat, PatType, Receiver,
+    Result, Token,
 };
 
 pub struct Section {
@@ -12,38 +13,32 @@ pub struct Section {
     pub generics: Generics,
     pub paren_token: Paren,
     pub inputs: Punctuated<FnArg, Comma>,
-    pub output: ReturnType,
 }
 
 impl Parse for Section {
     fn parse(input: ParseStream) -> Result<Self> {
         let ident: Ident = input.parse()?;
-        let mut generics: Generics = input.parse()?;
+        let generics: Generics = input.parse()?;
 
         let content;
         let paren_token = parenthesized!(content in input);
         let inputs = parse_fn_args(&content)?;
-
-        let output: ReturnType = input.parse()?;
-        generics.where_clause = input.parse()?;
 
         Ok(Section {
             ident,
             generics,
             paren_token,
             inputs,
-            output,
         })
     }
 }
 
-impl ::quote::ToTokens for Section {
+impl ToTokens for Section {
     fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
         self.ident.to_tokens(tokens);
         self.generics.to_tokens(tokens);
         self.paren_token
             .surround(tokens, |tokens| self.inputs.to_tokens(tokens));
-        self.output.to_tokens(tokens);
         self.generics.where_clause.to_tokens(tokens);
     }
 }
@@ -94,22 +89,6 @@ fn parse_fn_arg(input: ParseStream, attrs: Vec<Attribute>) -> Result<FnArg> {
         return Ok(FnArg::Receiver(receiver));
     }
 
-    // Hack to parse pre-2018 syntax in
-    // test/ui/rfc-2565-param-attrs/param-attrs-pretty.rs
-    // because the rest of the test case is valuable.
-    if input.peek(Ident) && input.peek2(Token![<]) {
-        let span = input.fork().parse::<Ident>()?.span();
-        return Ok(FnArg::Typed(PatType {
-            attrs,
-            pat: Box::new(Pat::Wild(PatWild {
-                attrs: Vec::new(),
-                underscore_token: Token![_](span),
-            })),
-            colon_token: Token![:](span),
-            ty: input.parse()?,
-        }));
-    }
-
     let pat = Box::new(Pat::parse_single(input)?);
     let colon_token: Token![:] = input.parse()?;
 
@@ -124,27 +103,41 @@ fn parse_fn_arg(input: ParseStream, attrs: Vec<Attribute>) -> Result<FnArg> {
 #[cfg(test)]
 mod tests {
     use super::Section;
-    use crate::tools::asserts::assert_tokens_are_matching;
+    use crate::tools::asserts::{assert_tokens_are_matching, assert_tokens_are_not_matching};
     use quote::quote;
 
     #[test]
     fn parse_section() {
-        let tokens = quote!(naked() -> usize);
+        let tokens = quote!(naked());
 
-        assert_tokens_are_matching::<Section>(tokens, r##"naked () -> usize"##);
+        assert_tokens_are_matching::<Section>(tokens, r##"naked ()"##);
 
-        let tokens = quote!(get_first<T: Debug>(vec: Vec<T>) -> Option<T>);
+        let tokens = quote!(get_first<T: Debug>(vec: Vec<T>));
 
         assert_tokens_are_matching::<Section>(
             tokens,
-            r##"get_first < T : Debug > (vec : Vec < T >) -> Option < T >"##,
+            r##"get_first < T : Debug > (vec : Vec < T >)"##,
         );
 
-        let tokens = quote!(find<'a>(collection: &'a Collection) -> &'a Item);
+        let tokens = quote!(find<'a>(collection: &'a Collection));
 
         assert_tokens_are_matching::<Section>(
             tokens,
-            r##"find < 'a > (collection : & 'a Collection) -> & 'a Item"##,
+            r##"find < 'a > (collection : & 'a Collection)"##,
+        );
+
+        let tokens = quote!(f(,));
+
+        assert_tokens_are_not_matching::<Section>(
+            tokens,
+            "expected one of: identifier, `::`, `<`, `_`, literal, `const`, `ref`, `mut`, `&`, parentheses, square brackets, `..`, `const`",
+        );
+
+        let tokens = quote!(f(x:));
+
+        assert_tokens_are_not_matching::<Section>(
+            tokens,
+            "unexpected end of input, expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime",
         );
     }
 }
