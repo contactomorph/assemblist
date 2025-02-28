@@ -1,4 +1,5 @@
 use super::chained_section::{ChainedSection, ContinuingSection, FinalSection};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Result, Token, Visibility};
@@ -68,7 +69,7 @@ impl Parse for Tree {
 }
 
 impl ToTokens for Branch {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Branch::Alternative(section, rest) => {
                 section.to_tokens(tokens);
@@ -82,7 +83,7 @@ impl ToTokens for Branch {
 }
 
 impl ToTokens for Trunk {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         for attr in &self.attrs {
             attr.to_tokens(tokens);
         }
@@ -94,7 +95,7 @@ impl ToTokens for Trunk {
 }
 
 impl ToTokens for Tree {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         for trunk in &self.roots {
             trunk.to_tokens(tokens);
         }

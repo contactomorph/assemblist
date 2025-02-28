@@ -1,3 +1,4 @@
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::discouraged::Speculative;
 use syn::parse::{Parse, ParseStream};
@@ -34,7 +35,7 @@ impl Parse for Section {
 }
 
 impl ToTokens for Section {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         self.ident.to_tokens(tokens);
         self.generics.to_tokens(tokens);
         self.paren_token

@@ -55,14 +55,14 @@ impl Parse for ChainedSection {
 }
 
 impl ToTokens for ContinuingSection {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         self.section.to_tokens(tokens);
         self.dot_token.to_tokens(tokens);
     }
 }
 
 impl ToTokens for FinalSection {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         self.section.to_tokens(tokens);
         self.output.to_tokens(tokens);
         self
@@ -72,7 +72,7 @@ impl ToTokens for FinalSection {
 }
 
 impl ToTokens for ChainedSection {
-    fn to_tokens(&self, tokens: &mut ::proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             ChainedSection::Continuing(inner) => inner.to_tokens(tokens),
             ChainedSection::Final(inner) => inner.to_tokens(tokens),

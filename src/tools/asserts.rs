@@ -30,3 +30,15 @@ where
         }
     }
 }
+
+pub fn assert_tokens_are_parsable_as<T>(tokens: TokenStream) -> T
+where
+    T: Parse + ToTokens,
+{
+    match parse2::<T>(tokens) {
+        Ok(item) => item,
+        Err(error) => {
+            panic!("Failed to parse type `{}`: {}", std::any::type_name::<T>(), error);
+        }
+    }
+}

@@ -22,6 +22,7 @@ mod parsing;
 mod sequentialization;
 mod tools;
 mod transformation;
+mod flattening;
 
 use parsing::item_tree::parse;
 use transformation::transform;
