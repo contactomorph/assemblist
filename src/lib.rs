@@ -16,15 +16,11 @@
 //!     Movie { name, release_year, director_name }
 //! }
 //! ```
-mod concepts;
 mod model;
-mod parsing;
-mod sequentialization;
 mod tools;
 mod transformation;
 mod flattening;
 
-use parsing::item_tree::parse;
 use transformation::transform;
 
 /**
@@ -57,22 +53,12 @@ use transformation::transform;
  */
 #[proc_macro]
 pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match parse(input) {
-        Ok(trees) => sequentialization::sequentialize_trees(trees).into(),
-        Err(failure) => failure.to_stream().into(),
-    }
+    transform(input)
 }
 
 #[doc(hidden)]
 #[proc_macro]
-pub fn assemblist_format(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match parse(input) {
-        Ok(trees) => sequentialization::format_trees(trees).into(),
-        Err(failure) => failure.to_stream().into(),
-    }
+pub fn assemblist_format(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    todo!()
 }
 
-#[proc_macro]
-pub fn assemblist_trans(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    transform(input)
-}
