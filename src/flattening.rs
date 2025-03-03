@@ -15,6 +15,16 @@ struct UsualArgSet {
     args : Vec<UsualArg>,
 }
 
+struct Step<'a> {
+    section: &'a Section,
+    args: &'a Vec<UsualArg>,
+}
+
+struct MultiStep<'a> {
+    previous: Vec<Step<'a>>,
+    current: Step<'a>,
+}
+
 fn extract_usual_arg(typed_arg: &PatType) -> std::result::Result<UsualArg, TokenStream> {
     match &*typed_arg.pat {
         Pat::Ident(pat_ident) => {
@@ -106,7 +116,61 @@ fn to_output_definition(section: &Section, arg_set: &UsualArgSet, tokens: &mut T
     });
 }
 
-fn to_section_module(trunk: &Trunk, section: &Section, arg_set: &UsualArgSet, tokens: &mut TokenStream) -> FlatteningResult {
+fn to_output_instance_2(multi: &MultiStep, tokens: &mut TokenStream) {
+    let section = multi.current.section;
+    let span = section.ident.span();
+    // ⟨name⟩::Output ⟨generics⟩ { ⟨field1⟩, …, ⟨fieldN⟩, }
+    section.ident.to_tokens(tokens);
+    syn::token::PathSep { spans: [span, span] }.to_tokens(tokens);
+    Ident::new("Output", span).to_tokens(tokens);
+    section.generics.to_tokens(tokens);
+    Brace::default().surround(tokens, |tokens| {
+        for arg in multi.current.args.iter() {
+            arg.ident.to_tokens(tokens);
+            syn::token::Comma { spans: [span] }.to_tokens(tokens);
+        }    
+    })
+}
+
+fn to_section_function(multi: &MultiStep, tokens: &mut TokenStream) -> FlatteningResult {
+    // fn ⟨signature⟩ -> ⟨name⟩::Output ⟨generics⟩ {
+    //   ⟨output_instance⟩
+    // }
+    let section = multi.current.section;
+    let args = multi.current.section;
+    let span = section.ident.span();
+    section.ident.to_tokens(tokens);
+    section.generics.to_tokens(tokens);
+    section.paren_token
+        .surround(tokens, |tokens| 
+            section.inputs.to_tokens(tokens)
+        );
+
+    syn::token::RArrow { spans: [span, span] }.to_tokens(tokens);
+    section.ident.to_tokens(tokens);
+    syn::token::PathSep { spans: [span, span] }.to_tokens(tokens);
+    Ident::new("Output", span).to_tokens(tokens);
+    section.generics.to_tokens(tokens);
+    Brace::default().surround(tokens, |tokens| {
+        to_output_instance_2(multi, tokens)
+    });
+    Ok(())
+}
+
+// fn to_nested_branch(branch: &Branch, sub: &Vec<Branch>, tokens: &mut TokenStream) -> FlatteningResult {
+//     match branch {
+//         Branch::Final(_) => {  }
+//         Branch::Alternative(continuing, branches) => {
+//             let section = &continuing.section;
+//             let arg_set = extract_usual_args(&continuing.section.inputs)?;
+//             to_base_section_module(self, section, &*branches, &arg_set, tokens)?;
+//             to_base_section_function(self, section, &arg_set, tokens)?;
+//         }
+//     }
+//     Ok(())
+// }
+
+fn to_base_section_module(trunk: &Trunk, section: &Section, sub: &(Branch, Vec<Branch>), arg_set: &UsualArgSet, tokens: &mut TokenStream) -> FlatteningResult {
     let span = trunk.fn_token.span;
     // ⟨visibility⟩ mod ⟨name⟩ {
     //     ⟨common_imports⟩
@@ -116,11 +180,15 @@ fn to_section_module(trunk: &Trunk, section: &Section, arg_set: &UsualArgSet, to
     trunk.vis.to_tokens(tokens);
     syn::token::Mod { span }.to_tokens(tokens);
     section.ident.to_tokens(tokens);
+    let mut result: FlatteningResult = Ok(());
     Brace::default().surround(tokens, |tokens| {
-        to_mod_common_imports(span, tokens);
-        to_output_definition(section, arg_set, tokens);
+        if result.is_ok() {
+            to_mod_common_imports(span, tokens);
+            to_output_definition(section, arg_set, tokens);
+            //result = to_nested_branch(&sub.0, &sub.1, tokens);
+        }
     });
-    Ok(())
+    result
 }
 
 fn to_output_instance(section: &Section, arg_set: &UsualArgSet, tokens: &mut TokenStream) {
@@ -138,7 +206,7 @@ fn to_output_instance(section: &Section, arg_set: &UsualArgSet, tokens: &mut Tok
     })
 }
 
-fn to_section_function(trunk: &Trunk, section: &Section, arg_set: &UsualArgSet, tokens: &mut TokenStream) -> FlatteningResult {
+fn to_base_section_function(trunk: &Trunk, section: &Section, arg_set: &UsualArgSet, tokens: &mut TokenStream) -> FlatteningResult {
     let span = trunk.fn_token.span;
     // ⟨attr⟩ ⟨visibility⟩ ⟨async⟩ fn ⟨signature⟩ -> ⟨name⟩::Output ⟨generics⟩ {
     //   ⟨output_instance⟩
@@ -167,11 +235,11 @@ impl Flattener for Trunk {
     fn to_flat_representation(&self, tokens: &mut TokenStream) -> FlatteningResult {
         match &self.branch {
             Branch::Final(_) => {  }
-            Branch::Alternative(continuing, _branches) => {
+            Branch::Alternative(continuing, branches) => {
                 let section = &continuing.section;
                 let arg_set = extract_usual_args(&continuing.section.inputs)?;
-                to_section_module(self, section, &arg_set, tokens)?;
-                to_section_function(self, section, &arg_set, tokens)?;
+                to_base_section_module(self, section, &*branches, &arg_set, tokens)?;
+                to_base_section_function(self, section, &arg_set, tokens)?;
             }
         }
         Ok(())
