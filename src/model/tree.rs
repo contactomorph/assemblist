@@ -1,12 +1,26 @@
-use super::chained_section::{ChainedSection, ContinuingSection, FinalSection};
+use super::chained_section::{ChainedSection, SectionTail};
+use super::section::Section;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Result, Token, Visibility};
+use syn::token::Brace;
+use syn::{Attribute, Result, ReturnType, Token, Visibility};
 
-pub enum Branch {
-    Alternative(ContinuingSection, Box<(Branch, Vec<Branch>)>),
-    Final(FinalSection),
+pub enum BranchTail {
+    Alternative {
+        dot: Token![.],
+        rest: Box<(Branch, Vec<Branch>)>
+    },
+    Leaf {
+        output: ReturnType,
+        brace: Brace,
+        body: TokenStream,
+    },
+}
+
+pub struct Branch {
+    pub section: Section,
+    pub tail: BranchTail,
 }
 
 pub struct Trunk {
@@ -25,17 +39,21 @@ impl Parse for Branch {
     fn parse(input: ParseStream) -> Result<Self> {
         let section: ChainedSection = input.parse()?;
 
-        match section {
-            ChainedSection::Final(inner) => {
-                Ok(Branch::Final(inner))
+        let tail = match section.tail {
+            SectionTail::Content { output, brace, body, } => {
+                BranchTail::Leaf {
+                    output,
+                    brace,
+                    body,
+                }
             },
-            ChainedSection::Continuing(inner) => {
+            SectionTail::Dot(dot) => {
                 let rest: Branch = input.parse()?;
-
                 let rest = Box::new((rest, Vec::new()));
-                Ok(Branch::Alternative(inner, rest))
+                BranchTail::Alternative { dot, rest, }
             }
-        }
+        };
+        Ok(Branch { section: section.section, tail })
     }
 }
 
@@ -70,13 +88,15 @@ impl Parse for Tree {
 
 impl ToTokens for Branch {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            Branch::Alternative(section, rest) => {
-                section.to_tokens(tokens);
+        self.section.to_tokens(tokens);
+        match &self.tail {
+            BranchTail::Alternative {dot, rest} => {
+                dot.to_tokens(tokens);
                 rest.0.to_tokens(tokens);
             }
-            Branch::Final(section) => {
-                section.to_tokens(tokens);
+            BranchTail::Leaf { output, brace, body} => {
+                output.to_tokens(tokens);
+                brace.surround(tokens, |tokens| body.to_tokens(tokens));
             }
         }
     }

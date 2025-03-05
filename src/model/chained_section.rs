@@ -6,21 +6,18 @@ use syn::{braced, Result, ReturnType, Token};
 
 use super::section::Section;
 
-pub struct ContinuingSection {
-    pub section: Section,
-    pub dot_token: Token![.],
+pub enum SectionTail {
+    Dot(Token![.]),
+    Content {
+        output: ReturnType,
+        brace: Brace,
+        body: TokenStream,
+    },
 }
 
-pub struct FinalSection {
+pub struct ChainedSection {
     pub section: Section,
-    pub output: ReturnType,
-    pub brace: Brace,
-    pub body: TokenStream,
-}
-
-pub enum ChainedSection {
-    Continuing(ContinuingSection),
-    Final(FinalSection),
+    pub tail: SectionTail,
 }
 
 impl Parse for ChainedSection {
@@ -29,11 +26,8 @@ impl Parse for ChainedSection {
 
         let maybe_dot_token: Result<Token![.]> = input.parse();
 
-        match maybe_dot_token {
-            Ok(dot_token) => {
-                let inner = ContinuingSection { section, dot_token };
-                Ok(ChainedSection::Continuing(inner))
-            }
+        let tail = match maybe_dot_token {
+            Ok(dot_token) => SectionTail::Dot(dot_token),
             Err(_) => {
                 let output: ReturnType = input.parse()?;
                 section.generics.where_clause = input.parse()?;
@@ -42,41 +36,38 @@ impl Parse for ChainedSection {
                 let brace: Brace = braced!(content in input);
 
                 let body: TokenStream = content.parse()?;
-                let inner = FinalSection {
-                    section,
+
+                SectionTail::Content {
                     output,
                     brace,
                     body,
-                };
-                Ok(ChainedSection::Final(inner))
+                }
             }
+        };
+        Ok(ChainedSection { section, tail })
+    }
+}
+
+impl ToTokens for SectionTail {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Dot(dot_token) => dot_token.to_tokens(tokens),
+            Self::Content {
+                output,
+                brace,
+                body,
+            }=> {
+                output.to_tokens(tokens);
+                brace.surround(tokens, |tokens| body.to_tokens(tokens));
+            },
         }
-    }
-}
-
-impl ToTokens for ContinuingSection {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.section.to_tokens(tokens);
-        self.dot_token.to_tokens(tokens);
-    }
-}
-
-impl ToTokens for FinalSection {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.section.to_tokens(tokens);
-        self.output.to_tokens(tokens);
-        self
-            .brace
-            .surround(tokens, |tokens| self.body.to_tokens(tokens));
     }
 }
 
 impl ToTokens for ChainedSection {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            ChainedSection::Continuing(inner) => inner.to_tokens(tokens),
-            ChainedSection::Final(inner) => inner.to_tokens(tokens),
-        }
+        self.section.to_tokens(tokens);
+        self.tail.to_tokens(tokens);
     }
 }
 
