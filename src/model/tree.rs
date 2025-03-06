@@ -9,7 +9,7 @@ use syn::{Attribute, Result, ReturnType, Token, Visibility};
 pub enum BranchTail {
     Alternative {
         dot: Token![.],
-        rest: Box<(Branch, Vec<Branch>)>
+        rest: Box<(Branch, Vec<Branch>)>,
     },
     Leaf {
         output: ReturnType,
@@ -32,7 +32,7 @@ pub struct Trunk {
 }
 
 pub struct Tree {
-    pub roots: Vec<Trunk>
+    pub roots: Vec<Trunk>,
 }
 
 impl Parse for Branch {
@@ -40,20 +40,25 @@ impl Parse for Branch {
         let section: ChainedSection = input.parse()?;
 
         let tail = match section.tail {
-            SectionTail::Content { output, brace, body, } => {
-                BranchTail::Leaf {
-                    output,
-                    brace,
-                    body,
-                }
+            SectionTail::Content {
+                output,
+                brace,
+                body,
+            } => BranchTail::Leaf {
+                output,
+                brace,
+                body,
             },
             SectionTail::Dot(dot) => {
                 let rest: Branch = input.parse()?;
                 let rest = Box::new((rest, Vec::new()));
-                BranchTail::Alternative { dot, rest, }
+                BranchTail::Alternative { dot, rest }
             }
         };
-        Ok(Branch { section: section.section, tail })
+        Ok(Branch {
+            section: section.section,
+            tail,
+        })
     }
 }
 
@@ -90,11 +95,15 @@ impl ToTokens for Branch {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.section.to_tokens(tokens);
         match &self.tail {
-            BranchTail::Alternative {dot, rest} => {
+            BranchTail::Alternative { dot, rest } => {
                 dot.to_tokens(tokens);
                 rest.0.to_tokens(tokens);
             }
-            BranchTail::Leaf { output, brace, body} => {
+            BranchTail::Leaf {
+                output,
+                brace,
+                body,
+            } => {
                 output.to_tokens(tokens);
                 brace.surround(tokens, |tokens| body.to_tokens(tokens));
             }
@@ -124,7 +133,7 @@ impl ToTokens for Tree {
 
 #[cfg(test)]
 mod tests {
-    use super::{Trunk, Tree};
+    use super::{Tree, Trunk};
     use crate::tools::asserts::{assert_tokens_are_matching, assert_tokens_are_not_matching};
     use quote::quote;
 
@@ -137,15 +146,15 @@ mod tests {
         let tokens = quote!(fn first.second() {});
 
         assert_tokens_are_not_matching::<Trunk>(tokens, "expected parentheses");
-        
+
         let tokens = quote!(
             fn first().second() { }
             fn third().fourth() { }
         );
 
         assert_tokens_are_matching::<Tree>(
-            tokens, 
-            r##"fn first () . second () { } fn third () . fourth () { }"##
+            tokens,
+            r##"fn first () . second () { } fn third () . fourth () { }"##,
         );
     }
 }

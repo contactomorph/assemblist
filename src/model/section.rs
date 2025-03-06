@@ -5,8 +5,7 @@ use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::{Comma, Paren};
 use syn::{
-    parenthesized, Attribute, Error, FnArg, Generics, Ident, Pat, PatType, Receiver,
-    Result, Token,
+    parenthesized, Attribute, Error, FnArg, Generics, Ident, Pat, PatType, Receiver, Result, Token,
 };
 
 pub struct Section {

@@ -1,13 +1,26 @@
 use proc_macro2::TokenStream;
-use quote::quote_spanned;
-use syn::{punctuated::Punctuated, token::Comma, Attribute, FnArg, Ident, Pat, PatType, Token, Type};
+use quote::{quote_spanned, ToTokens};
 use std::result::Result;
+use syn::{
+    punctuated::Punctuated, token::Comma, Attribute, FnArg, Ident, Pat, PatType, Token, Type,
+};
 
 pub struct UsualArg {
     pub attrs: Vec<Attribute>,
     pub ident: Ident,
     pub colon_token: Token![:],
     pub ty: Box<Type>,
+}
+
+impl ToTokens for UsualArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        for attr in &self.attrs {
+            attr.to_tokens(tokens);
+        }
+        self.ident.to_tokens(tokens);
+        self.colon_token.to_tokens(tokens);
+        self.ty.to_tokens(tokens);
+    }
 }
 
 pub type UsualArgExtractionResult = Result<Vec<UsualArg>, TokenStream>;
@@ -65,3 +78,54 @@ impl UsualArg {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::tools::asserts::{
+        assert_failure, assert_tokens_are_not_matching_punctuated,
+        assert_tokens_are_parsable_punctuated_as,
+    };
+    use quote::quote;
+    use syn::{punctuated::Punctuated, token::Comma, FnArg};
+
+    use super::UsualArg;
+
+    #[test]
+    fn parse_usual_args() {
+        let tokens = quote!(text: &'a str, n: i32);
+
+        let punctuated = assert_tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
+
+        let args =
+            UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
+
+        assert_eq!(2, args.len());
+        assert_eq!("text", args[0].ident.to_string().as_str());
+        assert_eq!("n", args[1].ident.to_string().as_str());
+
+        let tokens = quote!(pair: (usize, String), dates: Vec<Date>,);
+
+        let punctuated = assert_tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
+
+        let args =
+            UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
+
+        assert_eq!(2, args.len());
+        assert_eq!("pair", args[0].ident.to_string().as_str());
+        assert_eq!("dates", args[1].ident.to_string().as_str());
+
+        let tokens = quote!(text: &'a str, n: i32;);
+
+        assert_tokens_are_not_matching_punctuated::<FnArg, Comma>(tokens, "unexpected token");
+
+        let tokens = quote!(text: &'a str, self: Box<Self>);
+
+        let punctuated = assert_tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
+
+        let args = UsualArg::extract_usual_args(&punctuated);
+
+        assert_failure(
+            args,
+            "compile_error ! (\"self receiver is not supported\") ;",
+        );
+    }
+}

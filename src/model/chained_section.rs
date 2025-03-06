@@ -56,10 +56,10 @@ impl ToTokens for SectionTail {
                 output,
                 brace,
                 body,
-            }=> {
+            } => {
                 output.to_tokens(tokens);
                 brace.surround(tokens, |tokens| body.to_tokens(tokens));
-            },
+            }
         }
     }
 }

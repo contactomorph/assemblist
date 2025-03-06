@@ -16,10 +16,10 @@
 //!     Movie { name, release_year, director_name }
 //! }
 //! ```
+mod flattening;
 mod model;
 mod tools;
 mod transformation;
-mod flattening;
 
 use transformation::transform;
 
@@ -61,4 +61,3 @@ pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 pub fn assemblist_format(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     todo!()
 }
-
