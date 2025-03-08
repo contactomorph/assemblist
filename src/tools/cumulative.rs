@@ -22,30 +22,39 @@ pub type CumulativeListRef<'a, A> = &'a CumulativeList<'a, A>;
 
 impl<'a, A: ?Sized> CumulativeList<'a, A> {
     /**
-     *
+     * Get list size.
      */
     pub fn size(&self) -> usize {
         self.rank
     }
 
-    pub fn current(&self) -> Option<&CumulativeList<'a, A>> {
+    /**
+     * Get previous list.
+     */
+    pub fn previous(&self) -> Option<&CumulativeList<'a, A>> {
         match &self.alt {
             CumulativeAlt::End => None,
             CumulativeAlt::Prev { prev, .. } => Some(*prev),
         }
     }
-    pub fn previous(&self) -> Option<&A> {
+
+    /**
+     * Get current item.
+     */
+    pub fn item(&self) -> Option<&A> {
         match &self.alt {
             CumulativeAlt::End => None,
             CumulativeAlt::Prev { item, .. } => Some(item),
         }
     }
-    pub fn current_and_previous(&self) -> Option<(&A, &CumulativeList<'a, A>)> {
+
+    pub fn item_and_previous(&self) -> Option<(&A, &CumulativeList<'a, A>)> {
         match &self.alt {
             CumulativeAlt::End => None,
             CumulativeAlt::Prev { item, prev, .. } => Some((item, *prev)),
         }
     }
+    
     pub fn concat(&'a self, item: &'a A) -> CumulativeList<'a, A> {
         CumulativeList {
             rank: self.size() + 1,
@@ -79,38 +88,41 @@ impl<'a, A: ?Sized> IntoIterator for &'a CumulativeList<'a, A> {
     }
 }
 
-pub type CumulativeFnHandlerRef<'h, M, I, A, O> = &'h CumulativeFnHandler<'h, M, I, A, O>;
+pub type CumulativeFnHandlerRef<'h, S, I, A, O> = &'h CumulativeFnHandler<'h, S, I, A, O>;
 
-pub type CumulativeLambdaRef<M, I, A, O> =
-    for<'h, 'm, 'a> fn(CumulativeFnHandlerRef<'h, M, I, A, O>, &'m mut M, I, CumulativeListRef<'a, A>) -> O;
+pub type CumulativeLambdaRef<S, I, A, O> = for<'h, 's, 'a> fn(
+    CumulativeFnHandlerRef<'h, S, I, A, O>,
+    &'s mut S,
+    I,
+    CumulativeListRef<'a, A>,
+) -> O;
 
-pub struct CumulativeFnHandler<'a, M, I, A: ?Sized, O> {
-    f: CumulativeLambdaRef<M, I, A, O>,
+pub struct CumulativeFnHandler<'a, S, I, A: ?Sized, O> {
+    f: CumulativeLambdaRef<S, I, A, O>,
     agg: &'a CumulativeList<'a, A>,
 }
 
-pub struct CumulativeFn<M, I> {
-    m: PhantomData<M>,
-    i: PhantomData<I>,
+pub struct CumulativeFn<S, I> {
+    _ph: PhantomData<(S, I)>,
 }
 
-pub struct CumulativeFnCaller<M, I, A: ?Sized, O> {
-    f: CumulativeLambdaRef<M, I, A, O>,
+pub struct CumulativeFnCaller<S, I, A: ?Sized, O> {
+    f: CumulativeLambdaRef<S, I, A, O>,
 }
 
-impl<M, I> CumulativeFn<M, I> {
-    fn make<A: ?Sized, O>(f: CumulativeLambdaRef<M, I, A, O>) -> CumulativeFnCaller<M, I, A, O> {
+impl<S, I> CumulativeFn<S, I> {
+    fn make<A: ?Sized, O>(f: CumulativeLambdaRef<S, I, A, O>) -> CumulativeFnCaller<S, I, A, O> {
         CumulativeFnCaller { f }
     }
 }
 
-impl<M, I, A: ?Sized, O> CumulativeFnCaller<M, I, A, O> {
-    fn call(&self, state: &mut M, input: I) -> O {
+impl<S, I, A: ?Sized, O> CumulativeFnCaller<S, I, A, O> {
+    fn call(&self, state: &mut S, input: I) -> O {
         let agg: CumulativeList<'_, A> = CumulativeList {
             rank: 0,
             alt: CumulativeAlt::End,
         };
-        let handler = CumulativeFnHandler::<'_, M, I, A, O> {
+        let handler = CumulativeFnHandler::<'_, S, I, A, O> {
             f: self.f,
             agg: &agg,
         };
@@ -118,10 +130,10 @@ impl<M, I, A: ?Sized, O> CumulativeFnCaller<M, I, A, O> {
     }
 }
 
-impl<'a, M, I, A: ?Sized, O> CumulativeFnHandler<'a, M, I, A, O> {
-    fn call(&'a self, state: &mut M, input: I, item: &'a A) -> O {
+impl<'a, S, I, A: ?Sized, O> CumulativeFnHandler<'a, S, I, A, O> {
+    fn call(&'a self, state: &mut S, input: I, item: &'a A) -> O {
         let agg: CumulativeList<'_, A> = self.agg.concat(item);
-        let handler = CumulativeFnHandler::<'_, M, I, A, O> {
+        let handler = CumulativeFnHandler::<'_, S, I, A, O> {
             f: self.f,
             agg: &agg,
         };
@@ -138,15 +150,20 @@ mod tests {
 
     #[test]
     fn cummulative() {
-
         let f = CumulativeFn::<Vec<String>, (&Vec<&'static str>, usize)>::make(
-            |handler, state, (names, index), aggregation: CumulativeListRef<'_, str>| {
-                if index >= names.len() { return }
+            |handler, state, (names, index), aggregation| {
+                if index >= names.len() {
+                    return;
+                }
                 let inverted_name: String = names[index].to_string().chars().rev().collect();
                 let mut text = String::new();
                 let mut first = true;
                 for a in aggregation.into_iter() {
-                    if first { first = false } else { text.push(' ') }
+                    if first {
+                        first = false
+                    } else {
+                        text.push(' ')
+                    }
                     text.push_str(a)
                 }
                 state.push(text);
@@ -178,5 +195,6 @@ mod tests {
         assert_eq!("selletrom", state[10].as_str());
         assert_eq!("semmos", state[11].as_str());
         assert_eq!("suon", state[12].as_str());
+        assert_eq!("snovas", state[13].as_str());
     }
 }
