@@ -23,6 +23,21 @@ pub struct Branch {
     pub tail: BranchTail,
 }
 
+impl BranchTail {
+    pub fn is_last(&self) -> bool {
+        match self {
+            Self::Alternative { .. } => false,
+            Self::Leaf { .. } => true,
+        }
+    }
+}
+
+impl Branch {
+    pub fn is_last(&self) -> bool {
+        self.tail.is_last()
+    }
+}
+
 pub struct Trunk {
     pub attrs: Vec<Attribute>,
     pub vis: Visibility,

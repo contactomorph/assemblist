@@ -85,7 +85,7 @@ mod tests {
         assert_tokens_are_parsable_punctuated_as,
     };
     use quote::quote;
-    use syn::{punctuated::Punctuated, token::Comma, FnArg};
+    use syn::{token::Comma, FnArg};
 
     use super::UsualArg;
 

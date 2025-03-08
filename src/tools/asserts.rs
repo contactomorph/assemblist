@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-    parse::{self, Parse, ParseStream},
+    parse::{Parse, ParseStream},
     parse2,
     punctuated::Punctuated,
     Result,
@@ -129,7 +129,7 @@ pub fn assert_tokens_are_not_matching_punctuated<T, P>(
     P: Parse,
 {
     match parse2::<InnerPunctuaded<T, P>>(tokens) {
-        Ok(inner) => {
+        Ok(_) => {
             panic!(
                 "Should not be able to parse type `{}` punctuated by `{}`",
                 std::any::type_name::<T>(),

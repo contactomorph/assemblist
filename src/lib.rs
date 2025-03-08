@@ -19,9 +19,6 @@
 mod flattening;
 mod model;
 mod tools;
-mod transformation;
-
-use transformation::transform;
 
 /**
  * A macro used to generate immutable builders for functions and methods.
@@ -53,7 +50,7 @@ use transformation::transform;
  */
 #[proc_macro]
 pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    transform(input)
+    flattening::flattening::flatten(input)
 }
 
 #[doc(hidden)]
