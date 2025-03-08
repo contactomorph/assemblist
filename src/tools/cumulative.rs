@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
 
-use syn::parse::End;
-
 enum CumulativeAlt<'a, A: ?Sized> {
     End,
     Prev {
@@ -54,7 +52,7 @@ impl<'a, A: ?Sized> CumulativeList<'a, A> {
             CumulativeAlt::Prev { item, prev, .. } => Some((item, *prev)),
         }
     }
-    
+
     pub fn concat(&'a self, item: &'a A) -> CumulativeList<'a, A> {
         CumulativeList {
             rank: self.size() + 1,
@@ -111,13 +109,15 @@ pub struct CumulativeFnCaller<S, I, A: ?Sized, O> {
 }
 
 impl<S, I> CumulativeFn<S, I> {
-    fn make<A: ?Sized, O>(f: CumulativeLambdaRef<S, I, A, O>) -> CumulativeFnCaller<S, I, A, O> {
+    pub fn make<A: ?Sized, O>(
+        f: CumulativeLambdaRef<S, I, A, O>,
+    ) -> CumulativeFnCaller<S, I, A, O> {
         CumulativeFnCaller { f }
     }
 }
 
 impl<S, I, A: ?Sized, O> CumulativeFnCaller<S, I, A, O> {
-    fn call(&self, state: &mut S, input: I) -> O {
+    pub fn call(&self, state: &mut S, input: I) -> O {
         let agg: CumulativeList<'_, A> = CumulativeList {
             rank: 0,
             alt: CumulativeAlt::End,
@@ -131,7 +131,7 @@ impl<S, I, A: ?Sized, O> CumulativeFnCaller<S, I, A, O> {
 }
 
 impl<'a, S, I, A: ?Sized, O> CumulativeFnHandler<'a, S, I, A, O> {
-    fn call(&'a self, state: &mut S, input: I, item: &'a A) -> O {
+    pub fn call(&'a self, state: &mut S, input: I, item: &A) -> O {
         let agg: CumulativeList<'_, A> = self.agg.concat(item);
         let handler = CumulativeFnHandler::<'_, S, I, A, O> {
             f: self.f,
@@ -143,10 +143,7 @@ impl<'a, S, I, A: ?Sized, O> CumulativeFnHandler<'a, S, I, A, O> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        CumulativeFn, CumulativeFnHandler, CumulativeFnHandlerRef, CumulativeIterator,
-        CumulativeList, CumulativeListRef,
-    };
+    use super::CumulativeFn;
 
     #[test]
     fn cummulative() {
