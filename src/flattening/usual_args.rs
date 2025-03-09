@@ -1,9 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::{quote_spanned, ToTokens};
 use std::result::Result;
-use syn::{
-    punctuated::Punctuated, token::Comma, Attribute, FnArg, Ident, Pat, PatType, Token, Type,
-};
+use syn::punctuated::Punctuated;
+use syn::token::Comma;
+use syn::{Attribute, FnArg, Ident, Pat, PatType, Token, Type};
 
 pub struct UsualArg {
     pub attrs: Vec<Attribute>,
