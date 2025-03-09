@@ -1,44 +1,10 @@
+use super::chain::BrowsingChain;
 use super::usual_args::UsualArg;
 use crate::model::section::Section;
 use crate::model::tree::{Branch, BranchTail, Trunk};
 use proc_macro2::TokenStream;
 
 pub type FlatteningResult = std::result::Result<(), TokenStream>;
-
-pub struct BrowsingChain<'a> {
-    pub depth: usize,
-    pub section: &'a Section,
-    pub args: Vec<UsualArg>,
-    pub previous: Option<&'a BrowsingChain<'a>>,
-}
-
-impl<'a> IntoIterator for &'a BrowsingChain<'a> {
-    type Item = &'a BrowsingChain<'a>;
-
-    type IntoIter = BrowsingChainIterator<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        BrowsingChainIterator { chain: Some(self) }
-    }
-}
-
-pub struct BrowsingChainIterator<'a> {
-    chain: Option<&'a BrowsingChain<'a>>,
-}
-
-impl<'a> Iterator for BrowsingChainIterator<'a> {
-    type Item = &'a BrowsingChain<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.chain {
-            Some(current) => {
-                self.chain = current.previous;
-                Some(current)
-            }
-            None => None
-        }
-    }
-}
 
 pub fn flatten_branch_rec(
     stream: &mut TokenStream,
@@ -47,17 +13,7 @@ pub fn flatten_branch_rec(
     previous: Option<&BrowsingChain<'_>>,
     mut f: impl FnMut(&mut TokenStream, &Trunk, &BrowsingChain, &BranchTail) -> FlatteningResult,
 ) -> FlatteningResult {
-    let args = UsualArg::extract_usual_args(&branch.section.inputs)?;
-    let depth = match previous {
-        Some(previous) => previous.depth + 1,
-        None => 0,
-    };
-    let chain = BrowsingChain {
-        previous,
-        section: &branch.section,
-        args,
-        depth,
-    };
+    let chain = BrowsingChain::create(previous, &branch.section)?;
     f(stream, &trunk, &chain, &branch.tail)
 }
 
@@ -71,8 +27,9 @@ pub fn flatten_trunk(
 
 #[cfg(test)]
 mod tests {
+    use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{
-        flatten_branch_rec, flatten_trunk, BrowsingChain, FlatteningResult,
+        flatten_branch_rec, flatten_trunk, FlatteningResult,
     };
     use crate::model::tree::{BranchTail, Trunk};
     use crate::tools::asserts::assert_tokens_are_parsable_as;
@@ -89,17 +46,17 @@ mod tests {
     ) -> FlatteningResult {
         *calls += 1;
         assert!(trunk.asyncness.is_none());
-        match chain.depth {
+        match chain.depth() {
             0 => {
-                assert!(chain.previous.is_none());
-                assert_eq!(2, chain.section.generics.params.len());
-                assert_eq!(1, chain.args.len());
+                assert!(chain.previous().is_none());
+                assert_eq!(2, chain.section().generics.params.len());
+                assert_eq!(1, chain.args().len());
                 assert!(!tail.is_last());
             }
             1 => {
-                assert!(chain.previous.is_some());
-                assert_eq!(1, chain.section.generics.params.len());
-                assert_eq!(2, chain.args.len());
+                assert!(chain.previous().is_some());
+                assert_eq!(1, chain.section().generics.params.len());
+                assert_eq!(2, chain.args().len());
                 assert!(tail.is_last());
             }
             _ => {}

@@ -1,41 +1,11 @@
 use crate::flattening::trunk::flatten_trunk;
 use crate::model::tree::{BranchTail, Trunk};
 use proc_macro2::{Span, TokenStream};
-use quote::{quote_spanned, ToTokens};
-use syn::{parse_macro_input, token::Brace, Ident};
+use quote::ToTokens;
+use syn::{token::Brace, Ident};
 
-use super::trunk::{BrowsingChain, FlatteningResult};
-
-fn count_generics(chain: &BrowsingChain) -> usize {
-    let n = chain.section.generics.params.len();
-    match chain.previous {
-        Some(previous) => n + count_generics(previous),
-        None => n,
-    }
-}
-
-// <⟨generic1⟩, …, ⟨genericN⟩>
-fn produce_complete_generics(chain: &BrowsingChain, tokens: &mut TokenStream) {
-    let spans = [Span::call_site()];
-    let count = count_generics(chain);
-
-    if 0 < count {
-        let generics = &chain.section.generics;
-
-        syn::token::Lt { spans }.to_tokens(tokens);
-
-        for current in chain {
-            for param in current.section.generics.params.iter() {
-                param.to_tokens(tokens);
-                if 0 < current.depth { 
-                    syn::token::Comma { spans }.to_tokens(tokens)
-                }
-            }
-        }
-
-        syn::token::Gt { spans }.to_tokens(tokens);
-    }
-}
+use super::chain::BrowsingChain;
+use super::generics::produce_complete_generics;
 
 // pub struct Output ⟨generics⟩ {
 //      pub ⟨field1⟩: ⟨ty1⟩;
@@ -51,7 +21,7 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     produce_complete_generics(chain, tokens);
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
-            for arg in &current.args {
+            for arg in current.args() {
                 let span = arg.colon_token.span;
                 syn::token::Pub { span }.to_tokens(tokens);
                 for attr in &arg.attrs {
@@ -70,7 +40,7 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
 pub fn produce_output_name(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     let spans = [span];
-    let section = chain.section;
+    let section = chain.section();
 
     section.ident.to_tokens(tokens);
     syn::token::PathSep { spans: [span, span] }.to_tokens(tokens);
@@ -87,7 +57,7 @@ pub fn produce_output_instance(chain: &BrowsingChain, tokens: &mut TokenStream) 
 
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
-            for arg in &current.args {
+            for arg in current.args() {
                 arg.ident.to_tokens(tokens);
                 syn::token::Comma { spans }.to_tokens(tokens)
             }
@@ -97,8 +67,9 @@ pub fn produce_output_instance(chain: &BrowsingChain, tokens: &mut TokenStream) 
 
 #[cfg(test)]
 mod tests {
+    use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{
-        flatten_branch_rec, flatten_trunk, BrowsingChain, FlatteningResult,
+        flatten_branch_rec, flatten_trunk, FlatteningResult,
     };
     use crate::model::tree::{BranchTail, Trunk};
     use crate::tools::asserts::assert_tokens_are_parsable_as;

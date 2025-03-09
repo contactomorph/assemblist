@@ -1,8 +1,10 @@
-use crate::flattening::trunk::{flatten_trunk, BrowsingChain, FlatteningResult};
+use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
 use crate::model::tree::{BranchTail, Trunk};
 use proc_macro2::TokenStream;
 use quote::{quote_spanned, ToTokens};
 use syn::parse_macro_input;
+
+use super::chain::BrowsingChain;
 
 fn flatten_function(
     stream: &mut TokenStream,
