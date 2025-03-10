@@ -65,6 +65,26 @@ pub fn produce_output_instance(chain: &BrowsingChain, tokens: &mut TokenStream) 
     })
 }
 
+// let ⟨field1⟩ = self.⟨field1⟩;
+// …
+// let ⟨fieldN⟩ = self.⟨fieldN⟩;
+pub fn produce_output_deconstruction(chain: &BrowsingChain, tokens: &mut TokenStream) {
+    let span = Span::call_site();
+    let spans = [span];
+
+    for current in chain {
+        for arg in current.args() {
+            syn::token::Let { span }.to_tokens(tokens);
+            arg.ident.to_tokens(tokens);
+            syn::token::Eq { spans }.to_tokens(tokens);
+            syn::token::SelfValue { span }.to_tokens(tokens);
+            syn::token::Dot { spans }.to_tokens(tokens);
+            arg.ident.to_tokens(tokens);
+            syn::token::Semi { spans }.to_tokens(tokens);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::flattening::chain::BrowsingChain;

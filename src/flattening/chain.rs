@@ -50,6 +50,10 @@ impl<'a> BrowsingChain<'a> {
     pub fn previous(&'a self) -> Option<&'a BrowsingChain<'a>> {
         self.previous
     }
+
+    pub fn is_last(&self) -> bool {
+        self.previous.is_none()
+    }
 }
 
 impl<'a> IntoIterator for &'a BrowsingChain<'a> {
