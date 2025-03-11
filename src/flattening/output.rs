@@ -72,7 +72,7 @@ pub fn produce_output_deconstruction(chain: &BrowsingChain, tokens: &mut TokenSt
     let span = Span::call_site();
     let spans = [span];
 
-    for current in chain {
+for current in chain.into_iter().skip(1) {
         for arg in current.args() {
             syn::token::Let { span }.to_tokens(tokens);
             arg.ident.to_tokens(tokens);

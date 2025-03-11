@@ -16,16 +16,43 @@ pub fn produce_complete_generics(chain: &BrowsingChain, tokens: &mut TokenStream
     let spans = [Span::call_site()];
     let count = count_generics(chain);
 
+    let mut first = true;
+
     if 0 < count {
         syn::token::Lt { spans }.to_tokens(tokens);
 
         for current in chain {
             for param in current.section().generics.params.iter() {
-                param.to_tokens(tokens);
-                if 0 < current.depth() { 
+                if first {
+                    first = false;
+                } else { 
                     syn::token::Comma { spans }.to_tokens(tokens)
                 }
+                param.to_tokens(tokens);
             }
+        }
+
+        syn::token::Gt { spans }.to_tokens(tokens);
+    }
+}
+
+// <⟨generic1⟩, …, ⟨genericN⟩>
+pub fn produce_last_generics(chain: &BrowsingChain, tokens: &mut TokenStream) {
+    let spans = [Span::call_site()];
+    let count = chain.section().generics.params.len();
+
+    let mut first = true;
+
+    if 0 < count {
+        syn::token::Lt { spans }.to_tokens(tokens);
+
+        for param in chain.section().generics.params.iter() {
+            if first {
+                first = false;
+            } else { 
+                syn::token::Comma { spans }.to_tokens(tokens)
+            }
+            param.to_tokens(tokens);
         }
 
         syn::token::Gt { spans }.to_tokens(tokens);

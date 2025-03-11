@@ -2,12 +2,26 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::token::Brace;
 
-use super::{chain::BrowsingChain, generics::produce_complete_generics, output::{produce_output_deconstruction, produce_output_instance, produce_output_name}, trunk::FlatteningResult};
+use crate::model::tree::BranchTail;
 
-// pub fn ⟨name⟩⟨generics⟩(&self, ⟨args⟩) -> ⟨name⟩::Output ⟨generics⟩ {
+use super::{chain::BrowsingChain, generics::produce_last_generics, output::{produce_output_deconstruction, produce_output_instance, produce_output_name}, trunk::FlatteningResult};
+
+// pub fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨name⟩::Output ⟨generics⟩ {
+//   let ⟨field1⟩ = self.⟨field1⟩;
+//   …
+//   let ⟨fieldN⟩ = self.⟨fieldN⟩;
 //   ⟨output_instance⟩
 // }
-pub fn produce_inter_method(chain: &BrowsingChain, tokens: &mut TokenStream) {
+//
+// ∨
+//
+// pub fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨return_type⟩ {
+//   let ⟨field1⟩ = self.⟨field1⟩;
+//   …
+//   let ⟨fieldN⟩ = self.⟨fieldN⟩;
+//   ⟨body⟩
+// }
+pub fn produce_method(chain: &BrowsingChain, tail: &BranchTail, tokens: &mut TokenStream) {
     let output_section = chain.section();
     let span = Span::call_site();
     let spans = [span];
@@ -17,7 +31,7 @@ pub fn produce_inter_method(chain: &BrowsingChain, tokens: &mut TokenStream) {
     }
     syn::token::Fn { span }.to_tokens(tokens);
     output_section.ident.to_tokens(tokens);
-    produce_complete_generics(chain, tokens);
+    produce_last_generics(chain, tokens);
     output_section.paren_token
         .surround(tokens, |tokens| {
             if !chain.is_last() {
@@ -26,14 +40,24 @@ pub fn produce_inter_method(chain: &BrowsingChain, tokens: &mut TokenStream) {
             }
             output_section.inputs.to_tokens(tokens)
         });
-    syn::token::RArrow { spans: [span, span] }.to_tokens(tokens);
-    produce_output_name(chain, tokens);
-    Brace::default().surround(tokens, |tokens| {
-        for item in chain.into_iter().skip(1) {
-            produce_output_deconstruction(item, tokens);
+
+    match tail {
+        BranchTail::Alternative { .. } => {
+            syn::token::RArrow { spans: [span, span] }.to_tokens(tokens);
+            produce_output_name(chain, tokens);
+            Brace::default().surround(tokens, |tokens| {
+                produce_output_deconstruction(chain, tokens);
+                produce_output_instance(chain, tokens)
+            });
         }
-        produce_output_instance(chain, tokens)
-    });
+        BranchTail::Leaf { output, brace, body } => {
+            output.to_tokens(tokens);
+            brace.surround(tokens, |tokens| {
+                produce_output_deconstruction(chain, tokens);
+                body.to_tokens(tokens);
+            });
+        }
+    }
 }
 
 #[cfg(test)]
@@ -47,7 +71,7 @@ mod tests {
     use proc_macro2::TokenStream;
     use quote::quote;
 
-    use super::{produce_inter_method, produce_output_instance};
+    use super::produce_method;
 
     fn collect_method_data(
         stream: &mut TokenStream,
@@ -57,14 +81,9 @@ mod tests {
         tail: &BranchTail,
     ) -> FlatteningResult {
 
-        match tail {
-            BranchTail::Alternative { .. } => {
-                let mut inter_method = TokenStream::new();
-                produce_inter_method(chain, &mut inter_method);
-                method_data.push(inter_method);
-            }
-            _ => { }
-        }
+        let mut method = TokenStream::new();
+        produce_method(chain, tail, &mut method);
+        method_data.push(method);
 
         if let BranchTail::Alternative { rest, .. } = tail {
             flatten_branch_rec(
@@ -82,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_inter_method() {
-        let tokens = quote!(pub(crate) fn first<'a>(text: &'a str, uuid: Uuid).second<T>(n: &'a mut T).third(l: usize) {});
+        let tokens = quote!(pub(crate) fn first<'a>(text: &'a str, uuid: Uuid).second<T>(n: &'a mut T).third(l: usize) -> i64 { compose(l, uuid, combine(text, n)) });
 
         let trunk = assert_tokens_are_parsable_as::<Trunk>(tokens);
 
@@ -94,7 +113,7 @@ mod tests {
         })
         .expect("Should not have failed");
 
-        assert_eq!(2, method_data.len());
+        assert_eq!(3, method_data.len());
         assert_eq!(
             method_data[0].to_string().as_str(),
             "fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output < 'a > { \
@@ -103,10 +122,19 @@ mod tests {
         );
         assert_eq!(
             method_data[1].to_string().as_str(),
-            "pub fn second < T , 'a > (self , n : & 'a mut T) -> second :: Output < T , 'a > { \
+            "pub fn second < T > (self , n : & 'a mut T) -> second :: Output < T , 'a > { \
                 let text = self . text ; \
                 let uuid = self . uuid ; \
                 second :: Output < T , 'a > { n , text , uuid , } \
+            }",
+        );
+        assert_eq!(
+            method_data[2].to_string().as_str(),
+            "pub fn third (self , l : usize) -> i64 { \
+                let n = self . n ; \
+                let text = self . text ; \
+                let uuid = self . uuid ; \
+                compose (l , uuid , combine (text , n)) \
             }",
         );
     }
