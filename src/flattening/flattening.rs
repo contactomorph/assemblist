@@ -110,8 +110,8 @@ mod tests {
                 # ! [allow (unused_imports)] \
                 use super :: * ; \
                 pub struct Output < 'a > { \
-                    pub text : & 'a str , \
-                    pub uuid : Uuid , \
+                    pub (super) text : & 'a str , \
+                    pub (super) uuid : Uuid , \
                 } \
                 impl < 'a > Output < 'a > { \
                     pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < T , 'a > { \
@@ -124,9 +124,9 @@ mod tests {
                     # ! [allow (unused_imports)] \
                     use super :: * ; \
                     pub struct Output < T , 'a > { \
-                        pub n : & 'a mut T , \
-                        pub text : & 'a str , \
-                        pub uuid : Uuid , \
+                        pub (super) n : & 'a mut T , \
+                        pub (super) text : & 'a str , \
+                        pub (super) uuid : Uuid , \
                     } \
                     impl < T , 'a > Output < T , 'a > { \
                         pub fn third (self , l : usize) -> i64 { \

@@ -1,14 +1,14 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{token::Brace, Ident};
+use syn::{token::{Brace, Paren}, Ident};
 
 use super::chain::BrowsingChain;
 use super::generics::produce_complete_generics;
 
 // pub struct Output ⟨generics⟩ {
-//      pub ⟨field1⟩: ⟨ty1⟩,
+//      pub (super) ⟨field1⟩: ⟨ty1⟩,
 //      …
-//      pub ⟨fieldN⟩: ⟨tyN⟩,
+//      pub (super) ⟨fieldN⟩: ⟨tyN⟩,
 // }
 pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
@@ -22,9 +22,9 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
             for arg in current.args() {
                 let span = arg.colon_token.span;
                 syn::token::Pub { span }.to_tokens(tokens);
-                for attr in &arg.attrs {
-                    attr.to_tokens(tokens)
-                }
+                Paren::default().surround(tokens, |tokens| {
+                    syn::token::Super { span }.to_tokens(tokens);
+                });
                 arg.ident.to_tokens(tokens);
                 arg.colon_token.to_tokens(tokens);
                 arg.ty.to_tokens(tokens);
@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(6, output_data.len());
         assert_eq!(
             output_data[0].to_string().as_str(),
-            "pub struct Output < 'a > { pub text : & 'a str , }"
+            "pub struct Output < 'a > { pub (super) text : & 'a str , }"
         );
         assert_eq!(
             output_data[1].to_string().as_str(),
@@ -171,7 +171,7 @@ mod tests {
         );
         assert_eq!(
             output_data[3].to_string().as_str(),
-            "pub struct Output < T , 'a > { pub n : & 'a mut T , pub text : & 'a str , }"
+            "pub struct Output < T , 'a > { pub (super) n : & 'a mut T , pub (super) text : & 'a str , }"
         );
         assert_eq!(
             output_data[4].to_string().as_str(),
