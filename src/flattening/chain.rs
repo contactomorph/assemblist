@@ -20,7 +20,10 @@ impl<'a> BrowsingChain<'a> {
         Self::create(Some(self), section)
     }
 
-    pub fn create(previous: Option<&'a BrowsingChain<'a>>, section: &'a Section) -> Result<BrowsingChain<'a>, TokenStream> {
+    pub fn create(
+        previous: Option<&'a BrowsingChain<'a>>,
+        section: &'a Section,
+    ) -> Result<BrowsingChain<'a>, TokenStream> {
         let args = UsualArg::extract_usual_args(&section.inputs)?;
         let depth = match previous {
             Some(previous) => previous.depth + 1,
@@ -79,7 +82,7 @@ impl<'a> Iterator for BrowsingChainIterator<'a> {
                 self.chain = current.previous;
                 Some(current)
             }
-            None => None
+            None => None,
         }
     }
 }

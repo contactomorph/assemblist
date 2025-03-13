@@ -1,5 +1,3 @@
-use crate::flattening::trunk::flatten_trunk;
-use crate::model::tree::{BranchTail, Trunk};
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{token::Brace, Ident};
@@ -8,9 +6,9 @@ use super::chain::BrowsingChain;
 use super::generics::produce_complete_generics;
 
 // pub struct Output ⟨generics⟩ {
-//      pub ⟨field1⟩: ⟨ty1⟩;
+//      pub ⟨field1⟩: ⟨ty1⟩,
 //      …
-//      pub ⟨fieldN⟩: ⟨tyN⟩;
+//      pub ⟨fieldN⟩: ⟨tyN⟩,
 // }
 pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
@@ -18,7 +16,7 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     syn::token::Pub { span }.to_tokens(tokens);
     syn::token::Struct { span }.to_tokens(tokens);
     Ident::new("Output", span).to_tokens(tokens);
-    produce_complete_generics(chain, tokens);
+    produce_complete_generics(chain, false, tokens);
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
             for arg in current.args() {
@@ -30,30 +28,45 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
                 arg.ident.to_tokens(tokens);
                 arg.colon_token.to_tokens(tokens);
                 arg.ty.to_tokens(tokens);
-                syn::token::Semi { spans: [span] }.to_tokens(tokens);
+                syn::token::Comma { spans: [span] }.to_tokens(tokens);
             }
         }
     });
 }
 
-// ⟨path⟩::Output ⟨generics⟩
-pub fn produce_output_name(chain: &BrowsingChain, tokens: &mut TokenStream) {
+// Output ⟨generics⟩
+pub fn produce_naked_output_name(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
-    let spans = [span];
-    let section = chain.section();
-
-    section.ident.to_tokens(tokens);
-    syn::token::PathSep { spans: [span, span] }.to_tokens(tokens);
     Ident::new("Output", span).to_tokens(tokens);
-    produce_complete_generics(chain, tokens);
+    produce_complete_generics(chain, true, tokens);
+}
+
+// ⟨path⟩ :: Output :: ⟨generics⟩
+pub fn produce_output_name_with_namespace(chain: &BrowsingChain, tokens: &mut TokenStream) {
+    let span = Span::call_site();
+    chain.section().ident.to_tokens(tokens);
+    syn::token::PathSep {
+        spans: [span, span],
+    }
+    .to_tokens(tokens);
+    produce_naked_output_name(chain, tokens);
+}
+
+// impl ⟨generics⟩ Output ⟨generics⟩
+pub fn produce_inherent_impl_header_for_output(chain: &BrowsingChain, tokens: &mut TokenStream) {
+    let span = Span::call_site();
+    syn::token::Impl { span }.to_tokens(tokens);
+    produce_complete_generics(chain, false, tokens);
+    Ident::new("Output", span).to_tokens(tokens);
+    produce_complete_generics(chain, false, tokens);
 }
 
 // ⟨path⟩::Output ⟨generics⟩ { ⟨field1⟩, …, ⟨fieldN⟩, }
 pub fn produce_output_instance(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     let spans = [span];
-    
-    produce_output_name(chain, tokens);
+
+    produce_output_name_with_namespace(chain, tokens);
 
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
@@ -72,7 +85,7 @@ pub fn produce_output_deconstruction(chain: &BrowsingChain, tokens: &mut TokenSt
     let span = Span::call_site();
     let spans = [span];
 
-for current in chain.into_iter().skip(1) {
+    for current in chain.into_iter().skip(1) {
         for arg in current.args() {
             syn::token::Let { span }.to_tokens(tokens);
             arg.ident.to_tokens(tokens);
@@ -88,15 +101,13 @@ for current in chain.into_iter().skip(1) {
 #[cfg(test)]
 mod tests {
     use crate::flattening::chain::BrowsingChain;
-    use crate::flattening::trunk::{
-        flatten_branch_rec, flatten_trunk, FlatteningResult,
-    };
+    use crate::flattening::trunk::{flatten_branch_rec, flatten_trunk, FlatteningResult};
     use crate::model::tree::{BranchTail, Trunk};
     use crate::tools::asserts::assert_tokens_are_parsable_as;
     use proc_macro2::TokenStream;
     use quote::quote;
 
-    use super::{produce_output_definition, produce_output_instance};
+    use super::{produce_inherent_impl_header_for_output, produce_output_definition, produce_output_instance};
 
     fn collect_output_data(
         stream: &mut TokenStream,
@@ -111,6 +122,10 @@ mod tests {
 
         let mut output_instance = TokenStream::new();
         produce_output_instance(chain, &mut output_instance);
+        output_data.push(output_instance);
+
+        let mut output_instance = TokenStream::new();
+        produce_inherent_impl_header_for_output(chain, &mut output_instance);
         output_data.push(output_instance);
 
         if let BranchTail::Alternative { rest, .. } = tail {
@@ -141,22 +156,30 @@ mod tests {
         })
         .expect("Should not have failed");
 
-        assert_eq!(4, output_data.len());
+        assert_eq!(6, output_data.len());
         assert_eq!(
             output_data[0].to_string().as_str(),
-            "pub struct Output < 'a > { pub text : & 'a str ; }"
+            "pub struct Output < 'a > { pub text : & 'a str , }"
         );
         assert_eq!(
             output_data[1].to_string().as_str(),
-            "first :: Output < 'a > { text , }"
+            "first :: Output :: < 'a > { text , }"
         );
         assert_eq!(
             output_data[2].to_string().as_str(),
-            "pub struct Output < T , 'a > { pub n : & 'a mut T ; pub text : & 'a str ; }"
+            "impl < 'a > Output < 'a >"
         );
         assert_eq!(
             output_data[3].to_string().as_str(),
-            "second :: Output < T , 'a > { n , text , }"
+            "pub struct Output < T , 'a > { pub n : & 'a mut T , pub text : & 'a str , }"
+        );
+        assert_eq!(
+            output_data[4].to_string().as_str(),
+            "second :: Output :: < T , 'a > { n , text , }"
+        );
+        assert_eq!(
+            output_data[5].to_string().as_str(),
+            "impl < T , 'a > Output < T , 'a >"
         );
     }
 }

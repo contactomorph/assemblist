@@ -11,21 +11,28 @@ fn count_generics(chain: &BrowsingChain) -> usize {
     }
 }
 
-// <⟨generic1⟩, …, ⟨genericN⟩>
-pub fn produce_complete_generics(chain: &BrowsingChain, tokens: &mut TokenStream) {
-    let spans = [Span::call_site()];
+// :: <⟨generic1⟩, …, ⟨genericN⟩>
+pub fn produce_complete_generics(chain: &BrowsingChain, must_prefix: bool, tokens: &mut TokenStream) {
+    let span = Span::call_site();
+    let spans = [span];
     let count = count_generics(chain);
 
     let mut first = true;
 
     if 0 < count {
+        if must_prefix {
+            syn::token::PathSep {
+                spans: [span, span],
+            }
+            .to_tokens(tokens);
+        }
         syn::token::Lt { spans }.to_tokens(tokens);
 
         for current in chain {
             for param in current.section().generics.params.iter() {
                 if first {
                     first = false;
-                } else { 
+                } else {
                     syn::token::Comma { spans }.to_tokens(tokens)
                 }
                 param.to_tokens(tokens);
@@ -49,7 +56,7 @@ pub fn produce_last_generics(chain: &BrowsingChain, tokens: &mut TokenStream) {
         for param in chain.section().generics.params.iter() {
             if first {
                 first = false;
-            } else { 
+            } else {
                 syn::token::Comma { spans }.to_tokens(tokens)
             }
             param.to_tokens(tokens);

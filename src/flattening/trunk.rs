@@ -1,6 +1,4 @@
 use super::chain::BrowsingChain;
-use super::usual_args::UsualArg;
-use crate::model::section::Section;
 use crate::model::tree::{Branch, BranchTail, Trunk};
 use proc_macro2::TokenStream;
 
@@ -28,9 +26,7 @@ pub fn flatten_trunk(
 #[cfg(test)]
 mod tests {
     use crate::flattening::chain::BrowsingChain;
-    use crate::flattening::trunk::{
-        flatten_branch_rec, flatten_trunk, FlatteningResult,
-    };
+    use crate::flattening::trunk::{flatten_branch_rec, flatten_trunk, FlatteningResult};
     use crate::model::tree::{BranchTail, Trunk};
     use crate::tools::asserts::assert_tokens_are_parsable_as;
 
@@ -51,13 +47,13 @@ mod tests {
                 assert!(chain.previous().is_none());
                 assert_eq!(2, chain.section().generics.params.len());
                 assert_eq!(1, chain.args().len());
-                assert!(!tail.is_last());
+                assert!(if let BranchTail::Leaf { .. } = tail { false } else { true });
             }
             1 => {
                 assert!(chain.previous().is_some());
                 assert_eq!(1, chain.section().generics.params.len());
                 assert_eq!(2, chain.args().len());
-                assert!(tail.is_last());
+                assert!(if let BranchTail::Leaf { .. } = tail { true } else { false });
             }
             _ => {}
         }
