@@ -29,7 +29,8 @@ pub fn decompose_replacen() {
         "Une souris verte qui courait dans z'herbe \
         Je z'attrape par la queue, je la montre à ces messieurs \
         Ces messieurs me disent 'trempez-la dans z'huile' \
-        'Trempez-la dans l'eau, ça fera un escargot'");
+        'Trempez-la dans l'eau, ça fera un escargot'"
+    );
 }
 
 #[test]

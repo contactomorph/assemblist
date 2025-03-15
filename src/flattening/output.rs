@@ -1,9 +1,11 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{token::{Brace, Paren}, Ident};
+use syn::{
+    token::{Brace, Paren},
+    Ident,
+};
 
 use super::chain::BrowsingChain;
-use super::generics::produce_complete_generics;
 
 // pub struct Output ⟨generics⟩ {
 //      pub (super) ⟨field1⟩: ⟨ty1⟩,
@@ -16,7 +18,7 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     syn::token::Pub { span }.to_tokens(tokens);
     syn::token::Struct { span }.to_tokens(tokens);
     Ident::new("Output", span).to_tokens(tokens);
-    produce_complete_generics(chain, false, tokens);
+    chain.generics().produce_complete_generics(false, tokens);
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
             for arg in current.args() {
@@ -38,7 +40,7 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
 pub fn produce_naked_output_name(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     Ident::new("Output", span).to_tokens(tokens);
-    produce_complete_generics(chain, true, tokens);
+    chain.generics().produce_complete_generics(true, tokens);
 }
 
 // ⟨path⟩ :: Output :: ⟨generics⟩
@@ -56,9 +58,9 @@ pub fn produce_output_name_with_namespace(chain: &BrowsingChain, tokens: &mut To
 pub fn produce_inherent_impl_header_for_output(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     syn::token::Impl { span }.to_tokens(tokens);
-    produce_complete_generics(chain, false, tokens);
+    chain.generics().produce_complete_generics(false, tokens);
     Ident::new("Output", span).to_tokens(tokens);
-    produce_complete_generics(chain, false, tokens);
+    chain.generics().produce_complete_generics(false, tokens);
 }
 
 // ⟨path⟩::Output ⟨generics⟩ { ⟨field1⟩, …, ⟨fieldN⟩, }
@@ -107,7 +109,9 @@ mod tests {
     use proc_macro2::TokenStream;
     use quote::quote;
 
-    use super::{produce_inherent_impl_header_for_output, produce_output_definition, produce_output_instance};
+    use super::{
+        produce_inherent_impl_header_for_output, produce_output_definition, produce_output_instance,
+    };
 
     fn collect_output_data(
         stream: &mut TokenStream,
@@ -171,15 +175,15 @@ mod tests {
         );
         assert_eq!(
             output_data[3].to_string().as_str(),
-            "pub struct Output < T , 'a > { pub (super) n : & 'a mut T , pub (super) text : & 'a str , }"
+            "pub struct Output < 'a , T > { pub (super) n : & 'a mut T , pub (super) text : & 'a str , }"
         );
         assert_eq!(
             output_data[4].to_string().as_str(),
-            "second :: Output :: < T , 'a > { n , text , }"
+            "second :: Output :: < 'a , T > { n , text , }"
         );
         assert_eq!(
             output_data[5].to_string().as_str(),
-            "impl < T , 'a > Output < T , 'a >"
+            "impl < 'a , T > Output < 'a , T >"
         );
     }
 }

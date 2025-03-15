@@ -47,13 +47,21 @@ mod tests {
                 assert!(chain.previous().is_none());
                 assert_eq!(2, chain.section().generics.params.len());
                 assert_eq!(1, chain.args().len());
-                assert!(if let BranchTail::Leaf { .. } = tail { false } else { true });
+                assert!(if let BranchTail::Leaf { .. } = tail {
+                    false
+                } else {
+                    true
+                });
             }
             1 => {
                 assert!(chain.previous().is_some());
                 assert_eq!(1, chain.section().generics.params.len());
                 assert_eq!(2, chain.args().len());
-                assert!(if let BranchTail::Leaf { .. } = tail { true } else { false });
+                assert!(if let BranchTail::Leaf { .. } = tail {
+                    true
+                } else {
+                    false
+                });
             }
             _ => {}
         }

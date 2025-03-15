@@ -6,10 +6,9 @@ use crate::model::tree::BranchTail;
 
 use super::{
     chain::BrowsingChain,
-    generics::produce_last_generics,
     output::{
         produce_output_deconstruction, produce_output_instance, produce_output_name_with_namespace,
-    }
+    },
 };
 
 // pub fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨name⟩::Output ⟨generics⟩ {
@@ -37,7 +36,7 @@ pub fn produce_method(chain: &BrowsingChain, tail: &BranchTail, tokens: &mut Tok
     }
     syn::token::Fn { span }.to_tokens(tokens);
     output_section.ident.to_tokens(tokens);
-    produce_last_generics(chain, tokens);
+    chain.generics().produce_last_generics(tokens);
     output_section.paren_token.surround(tokens, |tokens| {
         if !chain.is_last() {
             syn::token::SelfValue { span }.to_tokens(tokens);
@@ -131,10 +130,10 @@ mod tests {
         );
         assert_eq!(
             method_data[1].to_string().as_str(),
-            "pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < T , 'a > { \
+            "pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < 'a , T > { \
                 let text = self . text ; \
                 let uuid = self . uuid ; \
-                second :: Output :: < T , 'a > { n , text , uuid , } \
+                second :: Output :: < 'a , T > { n , text , uuid , } \
             }",
         );
         assert_eq!(

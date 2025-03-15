@@ -6,9 +6,7 @@ use syn::token::Brace;
 
 use super::chain::BrowsingChain;
 use super::methods::produce_method;
-use super::output::{
-    produce_inherent_impl_header_for_output, produce_output_definition
-};
+use super::output::{produce_inherent_impl_header_for_output, produce_output_definition};
 use super::trunk::flatten_branch_rec;
 
 // ⟨attr⟩ ⟨visibility⟩ ⟨async⟩
@@ -43,8 +41,7 @@ fn flatten_section(
     if at_root {
         produce_method_prelude(trunk, tokens);
         produce_method(chain, tail, tokens);
-    }
-    else {
+    } else {
         Brace::default().surround(tokens, |tokens| {
             produce_method(chain, tail, tokens);
         });
@@ -63,8 +60,7 @@ fn flatten_section(
                 produce_common_imports(tokens);
                 produce_output_definition(chain, tokens);
                 produce_inherent_impl_header_for_output(chain, tokens);
-                result =
-                    flatten_branch_rec(tokens, trunk, &rest.0, Some(&chain), flatten_section);
+                result = flatten_branch_rec(tokens, trunk, &rest.0, Some(&chain), flatten_section);
             }
         });
         result
@@ -114,21 +110,21 @@ mod tests {
                     pub (super) uuid : Uuid , \
                 } \
                 impl < 'a > Output < 'a > { \
-                    pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < T , 'a > { \
+                    pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < 'a , T > { \
                         let text = self . text ; \
                         let uuid = self . uuid ; \
-                        second :: Output :: < T , 'a > { n , text , uuid , } \
+                        second :: Output :: < 'a , T > { n , text , uuid , } \
                     } \
                 } \
                 mod second { \
                     # ! [allow (unused_imports)] \
                     use super :: * ; \
-                    pub struct Output < T , 'a > { \
+                    pub struct Output < 'a , T > { \
                         pub (super) n : & 'a mut T , \
                         pub (super) text : & 'a str , \
                         pub (super) uuid : Uuid , \
                     } \
-                    impl < T , 'a > Output < T , 'a > { \
+                    impl < 'a , T > Output < 'a , T > { \
                         pub fn third (self , l : usize) -> i64 { \
                             let n = self . n ; \
                             let text = self . text ; \

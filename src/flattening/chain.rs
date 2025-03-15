@@ -1,13 +1,14 @@
 use proc_macro2::TokenStream;
 use std::result::Result;
 
-use super::usual_args::UsualArg;
+use super::{ordered_gens::OrderedGenericList, usual_args::UsualArg};
 use crate::model::section::Section;
 
 pub struct BrowsingChain<'a> {
     depth: usize,
     section: &'a Section,
     args: Vec<UsualArg>,
+    gen_list: OrderedGenericList,
     previous: Option<&'a BrowsingChain<'a>>,
 }
 
@@ -29,10 +30,17 @@ impl<'a> BrowsingChain<'a> {
             Some(previous) => previous.depth + 1,
             None => 0,
         };
+        let gen_list = match previous {
+            Some(previous) => {
+                OrderedGenericList::augment(Some(&previous.gen_list), &section.generics)
+            }
+            None => OrderedGenericList::augment(None, &section.generics),
+        };
         let chain = BrowsingChain {
             previous,
             section,
             args,
+            gen_list,
             depth,
         };
         Ok(chain)
@@ -48,6 +56,10 @@ impl<'a> BrowsingChain<'a> {
 
     pub fn args(&self) -> &Vec<UsualArg> {
         &self.args
+    }
+
+    pub fn generics(&self) -> &OrderedGenericList {
+        &self.gen_list
     }
 
     pub fn previous(&'a self) -> Option<&'a BrowsingChain<'a>> {
