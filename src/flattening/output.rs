@@ -18,7 +18,9 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     syn::token::Pub { span }.to_tokens(tokens);
     syn::token::Struct { span }.to_tokens(tokens);
     Ident::new("Output", span).to_tokens(tokens);
-    chain.generics().produce_complete_generics(false, tokens);
+    chain
+        .generics()
+        .produce_complete_constrained_generics(tokens);
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
             for arg in current.args() {
@@ -36,13 +38,6 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     });
 }
 
-// Output ⟨generics⟩
-pub fn produce_naked_output_name(chain: &BrowsingChain, tokens: &mut TokenStream) {
-    let span = Span::call_site();
-    Ident::new("Output", span).to_tokens(tokens);
-    chain.generics().produce_complete_generics(true, tokens);
-}
-
 // ⟨path⟩ :: Output :: ⟨generics⟩
 pub fn produce_output_name_with_namespace(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
@@ -51,16 +46,23 @@ pub fn produce_output_name_with_namespace(chain: &BrowsingChain, tokens: &mut To
         spans: [span, span],
     }
     .to_tokens(tokens);
-    produce_naked_output_name(chain, tokens);
+    Ident::new("Output", span).to_tokens(tokens);
+    chain
+        .generics()
+        .produce_complete_generic_names(true, tokens);
 }
 
 // impl ⟨generics⟩ Output ⟨generics⟩
 pub fn produce_inherent_impl_header_for_output(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     syn::token::Impl { span }.to_tokens(tokens);
-    chain.generics().produce_complete_generics(false, tokens);
+    chain
+        .generics()
+        .produce_complete_constrained_generics(tokens);
     Ident::new("Output", span).to_tokens(tokens);
-    chain.generics().produce_complete_generics(false, tokens);
+    chain
+        .generics()
+        .produce_complete_generic_names(false, tokens);
 }
 
 // ⟨path⟩::Output ⟨generics⟩ { ⟨field1⟩, …, ⟨fieldN⟩, }

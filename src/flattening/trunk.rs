@@ -12,7 +12,7 @@ pub fn flatten_branch_rec(
     mut f: impl FnMut(&mut TokenStream, &Trunk, &BrowsingChain, &BranchTail) -> FlatteningResult,
 ) -> FlatteningResult {
     let chain = BrowsingChain::create(previous, &branch.section)?;
-    f(stream, &trunk, &chain, &branch.tail)
+    f(stream, trunk, &chain, &branch.tail)
 }
 
 pub fn flatten_trunk(

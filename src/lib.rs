@@ -55,14 +55,14 @@ mod tools;
 #[proc_macro]
 pub fn assemblist(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let tree = parse_macro_input!(input as Tree);
-    flattening::flattening::flatten(tree).into()
+    flattening::tree::flatten(tree).into()
 }
 
 #[doc(hidden)]
 #[proc_macro]
 pub fn assemblist_text(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let tree = parse_macro_input!(input as Tree);
-    let text = flattening::flattening::flatten(tree).to_string();
+    let text = flattening::tree::flatten(tree).to_string();
     let text = Literal::string(text.as_str());
     let value = TokenTree::Literal(text);
     TokenStream::from(value)

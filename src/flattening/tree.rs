@@ -60,7 +60,7 @@ fn flatten_section(
                 produce_common_imports(tokens);
                 produce_output_definition(chain, tokens);
                 produce_inherent_impl_header_for_output(chain, tokens);
-                result = flatten_branch_rec(tokens, trunk, &rest.0, Some(&chain), flatten_section);
+                result = flatten_branch_rec(tokens, trunk, &rest.0, Some(chain), flatten_section);
             }
         });
         result
@@ -72,7 +72,7 @@ fn flatten_section(
 pub fn flatten(tree: Tree) -> TokenStream {
     let mut stream = TokenStream::new();
     for trunk in &tree.roots {
-        let res = flatten_trunk(&mut stream, &trunk, flatten_section);
+        let res = flatten_trunk(&mut stream, trunk, flatten_section);
         if let Err(error) = res {
             return error;
         }
@@ -85,8 +85,7 @@ mod tests {
     use quote::quote;
 
     use crate::{
-        flattening::flattening::flatten, model::tree::Tree,
-        tools::asserts::assert_tokens_are_parsable_as,
+        flattening::tree::flatten, model::tree::Tree, tools::asserts::assert_tokens_are_parsable_as,
     };
 
     #[test]

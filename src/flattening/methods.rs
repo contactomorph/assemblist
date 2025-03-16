@@ -36,7 +36,7 @@ pub fn produce_method(chain: &BrowsingChain, tail: &BranchTail, tokens: &mut Tok
     }
     syn::token::Fn { span }.to_tokens(tokens);
     output_section.ident.to_tokens(tokens);
-    chain.generics().produce_last_generics(tokens);
+    chain.generics().produce_last_contrained_generics(tokens);
     output_section.paren_token.surround(tokens, |tokens| {
         if !chain.is_last() {
             syn::token::SelfValue { span }.to_tokens(tokens);
@@ -63,6 +63,7 @@ pub fn produce_method(chain: &BrowsingChain, tail: &BranchTail, tokens: &mut Tok
             body,
         } => {
             output.to_tokens(tokens);
+            chain.generics().produce_where_clause(tokens);
             brace.surround(tokens, |tokens| {
                 produce_output_deconstruction(chain, tokens);
                 body.to_tokens(tokens);
