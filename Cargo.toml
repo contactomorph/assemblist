@@ -4,9 +4,9 @@ authors = ["Eddy Cizeron <eddy.cizeron@msn.com>"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-keywords = ["builder"]
-categories = ["builder"]
-description = "Builder patterns."
+keywords = ["builder", "macro"]
+categories = ["rust-patterns"]
+description = "Define your builder patterns as you use them."
 repository = "https://github.com/contactomorph/assemblist"
 readme = "README.md"
 
