@@ -9,13 +9,12 @@ use super::methods::produce_method;
 use super::output::{produce_inherent_impl_header_for_output, produce_output_definition};
 use super::trunk::flatten_branch_rec;
 
-// ⟨attr⟩ ⟨visibility⟩ ⟨async⟩
+// ⟨attr⟩ ⟨visibility⟩
 fn produce_method_prelude(trunk: &Trunk, tokens: &mut TokenStream) {
     for attr in &trunk.attrs {
         attr.to_tokens(tokens)
     }
     trunk.vis.to_tokens(tokens);
-    trunk.asyncness.to_tokens(tokens);
 }
 
 // #![allow(unused_imports)]
@@ -38,12 +37,13 @@ fn flatten_section(
 ) -> FlatteningResult {
     let at_root = chain.depth() == 0;
 
+    let asyncness = &trunk.asyncness;
     if at_root {
         produce_method_prelude(trunk, tokens);
-        produce_method(chain, tail, tokens);
+        produce_method(asyncness, chain, tail, tokens);
     } else {
         Brace::default().surround(tokens, |tokens| {
-            produce_method(chain, tail, tokens);
+            produce_method(asyncness, chain, tail, tokens);
         });
     }
     let span = trunk.fn_token.span;

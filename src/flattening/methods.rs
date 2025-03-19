@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::token::Brace;
+use syn::{token::Brace, Token};
 
 use crate::model::tree::BranchTail;
 
@@ -20,19 +20,27 @@ use super::{
 //
 // ∨
 //
-// pub fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨return_type⟩ {
+// pub ⟨asyncness⟩ fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨return_type⟩ {
 //   let ⟨field1⟩ = self.⟨field1⟩;
 //   …
 //   let ⟨fieldN⟩ = self.⟨fieldN⟩;
 //   ⟨body⟩
 // }
-pub fn produce_method(chain: &BrowsingChain, tail: &BranchTail, tokens: &mut TokenStream) {
+pub fn produce_method(
+    asyncness: &Option<Token![async]>,
+    chain: &BrowsingChain,
+    tail: &BranchTail,
+    tokens: &mut TokenStream,
+) {
     let output_section = chain.section();
     let span = Span::call_site();
     let spans = [span];
 
     if !chain.is_last() {
         syn::token::Pub { span }.to_tokens(tokens);
+    }
+    if let BranchTail::Leaf { .. } = tail {
+        asyncness.to_tokens(tokens);
     }
     syn::token::Fn { span }.to_tokens(tokens);
     output_section.ident.to_tokens(tokens);
@@ -61,6 +69,7 @@ pub fn produce_method(chain: &BrowsingChain, tail: &BranchTail, tokens: &mut Tok
             output,
             brace,
             body,
+            ..
         } => {
             output.to_tokens(tokens);
             chain.generics().produce_where_clause(tokens);
@@ -91,7 +100,7 @@ mod tests {
         tail: &BranchTail,
     ) -> FlatteningResult {
         let mut method = TokenStream::new();
-        produce_method(chain, tail, &mut method);
+        produce_method(&trunk.asyncness, chain, tail, &mut method);
         method_data.push(method);
 
         if let BranchTail::Alternative { rest, .. } = tail {

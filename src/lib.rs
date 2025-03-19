@@ -56,7 +56,7 @@ mod tools;
  * }
  * ```
  * # For building objects ... among others
- * 
+ *
  * Note that you can use `assemblist!` with valid rust code for the body content. It does not have to
  * be a constructor like in the previous example.
  * ```ignore
