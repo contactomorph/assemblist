@@ -2,9 +2,10 @@ use super::chained_section::{ChainedSection, SectionTail};
 use super::section::Section;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::parse::{Parse, ParseStream};
+use syn::parse::{Parse, ParseBuffer, ParseStream};
+use syn::spanned::Spanned;
 use syn::token::Brace;
-use syn::{Attribute, Result, ReturnType, Token, Visibility};
+use syn::{braced, Attribute, Result, ReturnType, Token, Visibility};
 
 pub enum BranchTail {
     Alternative {
@@ -35,6 +36,24 @@ pub struct Tree {
     pub roots: Vec<Trunk>,
 }
 
+fn try_parse_brace(input: ParseStream) -> Result<ParseBuffer<'_>> {
+    let content: ParseBuffer<'_>;
+    let _: Brace = braced!(content in input);
+    Ok(content)
+}
+
+fn try_parse_branches(input: ParseStream) -> Result<Box<(Branch, Vec<Branch>)>> {
+    input.parse::<Token![fn]>()?;
+    let first_branch: Branch = input.parse()?;
+    let mut other_branches = Vec::<Branch>::new();
+    while !input.is_empty() {
+        input.parse::<Token![fn]>()?;
+        let branch: Branch = input.parse()?;
+        other_branches.push(branch);
+    }
+    Ok(Box::new((first_branch, other_branches)))
+}
+
 impl Parse for Branch {
     fn parse(input: ParseStream) -> Result<Self> {
         let section: ChainedSection = input.parse()?;
@@ -50,9 +69,14 @@ impl Parse for Branch {
                 body,
             },
             SectionTail::Dot(dot) => {
-                let rest: Branch = input.parse()?;
-                let rest = Box::new((rest, Vec::new()));
-                BranchTail::Alternative { dot, rest }
+                if let Ok(inner) = try_parse_brace(input) {
+                    let rest = try_parse_branches(&inner)?;
+                    BranchTail::Alternative { dot, rest }
+                } else {
+                    let rest: Branch = input.parse()?;
+                    let rest = Box::new((rest, Vec::new()));
+                    BranchTail::Alternative { dot, rest }
+                }
             }
         };
         Ok(Branch {
@@ -97,7 +121,19 @@ impl ToTokens for Branch {
         match &self.tail {
             BranchTail::Alternative { dot, rest } => {
                 dot.to_tokens(tokens);
-                rest.0.to_tokens(tokens);
+                if rest.1.is_empty() {
+                    rest.0.to_tokens(tokens);
+                } else {
+                    let fn_token = syn::token::Fn { span: dot.span() };
+                    syn::token::Brace::default().surround(tokens, |tokens| {
+                        fn_token.to_tokens(tokens);
+                        rest.0.to_tokens(tokens);
+                        for branch in &rest.1 {
+                            fn_token.to_tokens(tokens);
+                            branch.to_tokens(tokens);
+                        }
+                    });
+                }
             }
             BranchTail::Leaf {
                 output,
@@ -156,6 +192,23 @@ mod tests {
         assert_tokens_are_matching::<Tree>(
             tokens,
             r##"fn first () . second () { } fn third () . fourth () { }"##,
+        );
+    }
+
+    #[test]
+    fn parse_tree_with_trivial_branch_alternative() {
+        let tokens = quote!(fn first().{ fn second() { } });
+
+        assert_tokens_are_matching::<Trunk>(tokens, r##"fn first () . second () { }"##);
+    }
+
+    #[test]
+    fn parse_tree_with_real_branch_alternative() {
+        let tokens = quote!(fn first().{ fn second() { } fn second_prime() { } });
+
+        assert_tokens_are_matching::<Trunk>(
+            tokens,
+            r##"fn first () . { fn second () { } fn second_prime () { } }"##,
         );
     }
 }

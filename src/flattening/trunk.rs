@@ -72,7 +72,16 @@ mod tests {
                 &rest.0,
                 Some(&chain),
                 |stream, trunk, chain, tail| analyse_branch(stream, calls, trunk, chain, tail),
-            )?
+            )?;
+            for branch in &rest.1 {
+                flatten_branch_rec(
+                    stream,
+                    trunk,
+                    branch,
+                    Some(&chain),
+                    |stream, trunk, chain, tail| analyse_branch(stream, calls, trunk, chain, tail),
+                )?;
+            }
         }
         Ok(())
     }

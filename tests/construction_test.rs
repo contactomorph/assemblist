@@ -1,4 +1,6 @@
 use assemblist::assemblist;
+use http::Uri;
+use json::JsonValue;
 use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -66,7 +68,7 @@ fn convert_method_chain_for_multi_ptr() {
 }
 
 #[test]
-fn convert_method_chain_for_multi_ptr_in_tree_steps() {
+fn convert_method_chain_for_multi_ptr_in_3_steps() {
     assemblist! {
         pub fn mutli_ptr_with<'a, T>(ptr1: &'a T)
             .and<'b, U>(ptr2: &'b U)
@@ -82,4 +84,94 @@ fn convert_method_chain_for_multi_ptr_in_tree_steps() {
     let multi = mutli_ptr_with(&a).and(&b).closed();
     assert_eq!(&a as *const _, multi.ptr1 as *const _);
     assert_eq!(&b as *const _, multi.ptr2 as *const _);
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum HttpBody {
+    Text(String),
+    Json(JsonValue),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum HttpAuthorization {
+    None,
+    Basic(String),
+    Bearer(String),
+}
+
+pub struct PostHttpRequest {
+    url: Uri,
+    user_agent: String,
+    authorization: HttpAuthorization,
+    body: HttpBody,
+}
+
+pub struct GetHttpRequest {
+    url: Uri,
+    user_agent: String,
+    authorization: HttpAuthorization,
+}
+
+#[test]
+fn convert_method_chain_for_http_requests() {
+    assemblist! {
+        fn new_http_request_to(url: Uri)
+            .from<'a>(user_agent: &'a str)
+            .with_authorization(authorization: HttpAuthorization).{
+
+            fn as_get() -> GetHttpRequest {
+                GetHttpRequest {
+                    url,
+                    user_agent: user_agent.to_string(),
+                    authorization,
+                }
+            }
+
+            fn as_text_post(body: String) -> PostHttpRequest {
+                PostHttpRequest {
+                    url,
+                    user_agent: user_agent.to_string(),
+                    authorization,
+                    body: HttpBody::Text(body),
+                }
+            }
+
+            fn as_json_post(json: JsonValue) -> PostHttpRequest {
+                PostHttpRequest {
+                    url,
+                    user_agent: user_agent.to_string(),
+                    authorization,
+                    body: HttpBody::Json(json),
+                }
+            }
+        }
+    };
+
+    let get_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
+        .from("FireFox")
+        .with_authorization(HttpAuthorization::None)
+        .as_get();
+
+    assert_eq!(
+        get_request.url.to_string(),
+        "http://www.croco-paradise.tv/".to_string()
+    );
+    assert_eq!(get_request.user_agent, "FireFox".to_string());
+    assert_eq!(get_request.authorization, HttpAuthorization::None);
+
+    let post_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
+        .from("FireFox")
+        .with_authorization(HttpAuthorization::Bearer("AEKZEFOEZ".to_string()))
+        .as_text_post("Hello world".to_string());
+
+    assert_eq!(
+        post_request.url.to_string(),
+        "http://www.croco-paradise.tv/".to_string()
+    );
+    assert_eq!(post_request.user_agent, "FireFox".to_string());
+    assert_eq!(
+        post_request.authorization,
+        HttpAuthorization::Bearer("AEKZEFOEZ".to_string())
+    );
+    assert_eq!(post_request.body, HttpBody::Text("Hello world".to_string()));
 }

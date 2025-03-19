@@ -62,6 +62,13 @@ fn flatten_section(
                 produce_inherent_impl_header_for_output(chain, tokens);
                 result = flatten_branch_rec(tokens, trunk, &rest.0, Some(chain), flatten_section);
             }
+            for branch in &rest.1 {
+                if result.is_ok() {
+                    produce_inherent_impl_header_for_output(chain, tokens);
+                    result =
+                        flatten_branch_rec(tokens, trunk, branch, Some(chain), flatten_section);
+                }
+            }
         });
         result
     } else {
