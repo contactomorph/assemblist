@@ -127,21 +127,23 @@ fn convert_method_chain_for_http_requests() {
                 }
             }
 
-            fn as_text_post(body: String) -> PostHttpRequest {
-                PostHttpRequest {
-                    url,
-                    user_agent: user_agent.to_string(),
-                    authorization,
-                    body: HttpBody::Text(body),
+            fn as_post().{
+                fn with_text(body: String) -> PostHttpRequest {
+                    PostHttpRequest {
+                        url,
+                        user_agent: user_agent.to_string(),
+                        authorization,
+                        body: HttpBody::Text(body),
+                    }
                 }
-            }
 
-            fn as_json_post(json: JsonValue) -> PostHttpRequest {
-                PostHttpRequest {
-                    url,
-                    user_agent: user_agent.to_string(),
-                    authorization,
-                    body: HttpBody::Json(json),
+                fn with_json(json: JsonValue) -> PostHttpRequest {
+                    PostHttpRequest {
+                        url,
+                        user_agent: user_agent.to_string(),
+                        authorization,
+                        body: HttpBody::Json(json),
+                    }
                 }
             }
         }
@@ -162,7 +164,8 @@ fn convert_method_chain_for_http_requests() {
     let post_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
         .from("FireFox")
         .with_authorization(HttpAuthorization::Bearer("AEKZEFOEZ".to_string()))
-        .as_text_post("Hello world".to_string());
+        .as_post()
+        .with_text("Hello world".to_string());
 
     assert_eq!(
         post_request.url.to_string(),

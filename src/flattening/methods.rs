@@ -84,7 +84,7 @@ pub fn produce_method(
 #[cfg(test)]
 mod tests {
     use crate::flattening::chain::BrowsingChain;
-    use crate::flattening::trunk::{flatten_branch_rec, flatten_trunk, FlatteningResult};
+    use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
     use crate::model::tree::{BranchTail, Trunk};
     use crate::tools::asserts::assert_tokens_are_parsable_as;
     use proc_macro2::TokenStream;
@@ -104,15 +104,9 @@ mod tests {
         method_data.push(method);
 
         if let BranchTail::Alternative { rest, .. } = tail {
-            flatten_branch_rec(
-                stream,
-                trunk,
-                &rest.0,
-                Some(&chain),
-                |stream, trunk, chain, tail| {
-                    collect_method_data(stream, method_data, trunk, chain, tail)
-                },
-            )?
+            let next_chain = chain.concat(&rest.0.section)?;
+            let next_tail = &rest.0.tail;
+            collect_method_data(stream, method_data, trunk, &next_chain, next_tail)?
         }
         Ok(())
     }

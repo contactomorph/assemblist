@@ -1,13 +1,13 @@
 use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
-use crate::model::tree::{BranchTail, Tree, Trunk};
-use proc_macro2::TokenStream;
+use crate::model::tree::{Branch, BranchTail, Tree, Trunk};
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::token::Brace;
+use syn::Visibility;
 
 use super::chain::BrowsingChain;
 use super::methods::produce_method;
 use super::output::{produce_inherent_impl_header_for_output, produce_output_definition};
-use super::trunk::flatten_branch_rec;
 
 // ⟨attr⟩ ⟨visibility⟩
 fn produce_method_prelude(trunk: &Trunk, tokens: &mut TokenStream) {
@@ -24,51 +24,88 @@ fn produce_common_imports(tokens: &mut TokenStream) {
     tokens.extend(use_stream);
 }
 
-// mod ⟨name⟩ {
-//     ⟨common_imports⟩
-//     ⟨output_definition⟩
-//     ⟨impl⟩
+// ⟨visibility⟩ mod ⟨name⟩
+fn produce_module_header(vis: &Visibility, chain: &BrowsingChain, tokens: &mut TokenStream) {
+    let span = Span::call_site();
+
+    if chain.depth() == 0 {
+        vis.to_tokens(tokens);
+    }
+    syn::token::Mod { span }.to_tokens(tokens);
+    chain.section().ident.to_tokens(tokens);
+}
+
+// ⟨common_imports⟩
+// ⟨output_definition⟩
+// ⟨impl_header⟩ {
+//   ⟨method1⟩
+//   …
+//   ⟨methodN⟩
 // }
-fn flatten_section(
+// ⟨sub_module1⟩
+// …
+// ⟨sub_moduleN⟩
+fn produce_module_body(
+    trunk: &Trunk,
+    rest: &(Branch, Vec<Branch>),
+    chain: &BrowsingChain,
+    tokens: &mut TokenStream,
+) -> FlatteningResult {
+    produce_common_imports(tokens);
+    produce_output_definition(chain, tokens);
+
+    let asyncness = &trunk.asyncness;
+    let mut continuations = Vec::<(BrowsingChain, &BranchTail)>::new();
+
+    let first_chain = chain.concat(&rest.0.section)?;
+    let first_tail = &rest.0.tail;
+    continuations.push((first_chain, first_tail));
+
+    for branch in &rest.1 {
+        let next_chain = chain.concat(&branch.section)?;
+        let next_tail = &branch.tail;
+        continuations.push((next_chain, next_tail));
+    }
+
+    produce_inherent_impl_header_for_output(chain, tokens);
+    Brace::default().surround(tokens, |tokens| {
+        for (next_chain, next_tail) in &continuations {
+            produce_method(asyncness, next_chain, next_tail, tokens);
+        }
+    });
+
+    for (next_chain, next_tail) in continuations {
+        produce_module(tokens, trunk, &next_chain, next_tail)?
+    }
+    Ok(())
+}
+
+// ⟨module_header⟩ {
+//     ⟨module_body⟩
+// }
+//
+// ∨
+//
+// ⟨root_method⟩
+// ⟨module_header⟩ {
+//     ⟨module_body⟩
+// }
+fn produce_module(
     tokens: &mut TokenStream,
     trunk: &Trunk,
     chain: &BrowsingChain,
     tail: &BranchTail,
 ) -> FlatteningResult {
-    let at_root = chain.depth() == 0;
-
-    let asyncness = &trunk.asyncness;
-    if at_root {
+    if chain.depth() == 0 {
         produce_method_prelude(trunk, tokens);
-        produce_method(asyncness, chain, tail, tokens);
-    } else {
-        Brace::default().surround(tokens, |tokens| {
-            produce_method(asyncness, chain, tail, tokens);
-        });
+        produce_method(&trunk.asyncness, chain, tail, tokens);
     }
-    let span = trunk.fn_token.span;
 
     if let BranchTail::Alternative { rest, .. } = tail {
-        if at_root {
-            trunk.vis.to_tokens(tokens);
-        }
-        syn::token::Mod { span }.to_tokens(tokens);
-        chain.section().ident.to_tokens(tokens);
+        produce_module_header(&trunk.vis, chain, tokens);
         let mut result: FlatteningResult = Ok(());
         Brace::default().surround(tokens, |tokens| {
-            if result.is_ok() {
-                produce_common_imports(tokens);
-                produce_output_definition(chain, tokens);
-                produce_inherent_impl_header_for_output(chain, tokens);
-                result = flatten_branch_rec(tokens, trunk, &rest.0, Some(chain), flatten_section);
-            }
-            for branch in &rest.1 {
-                if result.is_ok() {
-                    produce_inherent_impl_header_for_output(chain, tokens);
-                    result =
-                        flatten_branch_rec(tokens, trunk, branch, Some(chain), flatten_section);
-                }
-            }
+            result = produce_module_body(trunk, rest, chain, tokens);
         });
         result
     } else {
@@ -77,14 +114,13 @@ fn flatten_section(
 }
 
 pub fn flatten(tree: Tree) -> TokenStream {
-    let mut stream = TokenStream::new();
+    let mut tokens = TokenStream::new();
     for trunk in &tree.roots {
-        let res = flatten_trunk(&mut stream, trunk, flatten_section);
-        if let Err(error) = res {
+        if let Err(error) = flatten_trunk(&mut tokens, trunk, produce_module) {
             return error;
         }
     }
-    stream
+    tokens
 }
 
 #[cfg(test)]
