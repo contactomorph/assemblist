@@ -89,3 +89,47 @@ async fn convert_method_chain_with_async_logic() {
         Err(_) => panic!("Waited too long"),
     }
 }
+
+#[test]
+fn convert_method_chain_with_two_references() {
+    assemblist! {
+        fn pour_items_from<'a, T>(source: &'a mut Vec<T>)
+            .starting_at(n: usize)
+            .into<'b>(destination: &'b mut Vec<T>)
+        {
+            for item in source.drain(n..) {
+                destination.push(item);
+            }
+        }
+    }
+
+    let mut source = vec![-23, 45, 6, 0, -9];
+    let mut destination = vec![8, -1, 43, 61, -102];
+
+    pour_items_from(&mut source).starting_at(2).into(&mut destination);
+
+    assert_eq!(2, source.len());
+    assert_eq!(8, destination.len());
+}
+
+#[test]
+fn convert_method_chain_with_two_double_references() {
+    assemblist! {
+        fn swap<'a, 'x, T>(item1: &'a mut &'x T).with<'b>(item2: &'b mut &'x T) {
+            let i1 = *item1;
+            *item1 = *item2;
+            *item2 = i1;
+        }
+    }
+
+    let item1 = "Bonjour".to_string();
+    let item2 = "Hola".to_string();
+
+    let r1 = &mut &item1;
+    let r2 = &mut &item2;
+
+    swap(r1).with(r2);
+
+    assert_eq!("Hola", r1.as_str());
+    assert_eq!("Bonjour", r2.as_str());
+}

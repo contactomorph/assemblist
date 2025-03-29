@@ -6,8 +6,8 @@
 //! However creating all the builder machinery can lead to boilerplate code, in particular when the
 //! generated data is complex and multi-layered.
 //! The usual builder pattern is based on mutation and generally turns compile-time checks that
-//! the final object is complete to a runtime verification. Assemblist allows you to create immutable builders
-//! structured as method chains like in
+//! the final object is complete to a runtime verification. Assemblist allows you to create fluent
+//! immutable builders structured as method chains like in:
 //! ```ignore
 //! fn define_movie<'a>(name: &'a str)
 //!     .released_in(release_year: usize)
@@ -20,7 +20,7 @@
 //!    }
 //! }
 //! ```
-//! You can then just call it as it was declared
+//! You can then just call it as it was declared:
 //! ```ignore
 //! let movie = define_movie("The Lobster")
 //!     .released_in(2015)
@@ -35,7 +35,7 @@ mod model;
 mod tools;
 
 /**
- * The point of this crate. Generate immutable builders based on chains of methods.
+ * The point of this crate. Allows to generate fluent immutable builders based on method chains.
  *
  * The argument of the `assemblist!` macro is a scope containing one or more method chains.
  * A method chain is similar to a function except that its name and argument list are split into multiple sections.
@@ -55,20 +55,124 @@ mod tools;
  *     }
  * }
  * ```
- * # For building objects ... among others
- *
- * Note that you can use `assemblist!` with valid rust code for the body content. It does not have to
- * be a constructor like in the previous example.
+ * 
+ * You can then just call method chains as they are declared:
+ * ```ignore
+ * let movie = define_movie("The Lobster")
+ *     .released_in(2015)
+ *     .directed_by("Yorgos Lanthimos");
+ * ```
+ * 
+ * Multiple method chains can be declared inside the same `assemblist!{ … }` block:
  * ```ignore
  * assemblist! {
- *     pub fn replace_in<'a>(string: &'a str)
- *         .occurrences_of(pattern: &'a str)
- *         .with(to: &'a str)
- *         .at_most(n: usize)
- *         .times() -> String
- *     {
- *         string.replacen(pattern, to, n)
+ *     fn f1(/*args*/).f2(/*args*/).f3(/*args*/) { /* code */ }
+ *     fn g1(/*args*/).g2(/*args*/) { /* code */ }
+ *     fn h1(/*args*/).h2(/*args*/).h3(/*args*/).h4(/*args*/) { /* code */ }
+ * }
+ * ```
+ * 
+ * ## Use builders with any function body
+ * 
+ * Contrary to many alternative crates, in Assemblist, builder patterns are not generated from 
+ * annotations on a struct to build, but by directly declaring method chains as if they were basic
+ * constructions of the Rust language. In * addition to making their use obvious, this pattern
+ * allows for much more flexibility in the implementation. In fact, you do not even need to build
+ * something. For example you may just want to decompose an existing function in order to clarify
+ * the purpose of its parameters:
+ * ```ignore
+ * pub fn replace_in<'a>(text: &'a str)
+ *     .occurrences_of(pattern: &'a str)
+ *     .with(replacement: &'a str)
+ *     .at_most(n: usize)
+ *     .times() -> String
+ * {
+ *     text.replacen(pattern, replacement, n)
+ * }
+ * ```
+ * You can actually include arbitrary complex code.
+ * 
+ * ## Alternatives
+ * 
+ * The builder pattern is a very expressive method to offer alternatives to users of a library.
+ * They can start with a common function name and then choose which subsequent method makes sense for
+ * their specific case. Assemblist aknowledges this possibility by offering the alternative syntax:
+ * ```ignore
+ * fn new_http_request_to(url: Uri)
+ *     .from<'a>(user_agent: &'a str)
+ *     .with_authorization(authorization: HttpAuthorization).{
+ * 
+ *     fn as_get() -> GetHttpRequest {
+ *         GetHttpRequest {
+ *             url,
+ *             user_agent: user_agent.to_string(),
+ *             authorization,
+ *         }
  *     }
+ * 
+ *     fn as_post().{
+ *         fn with_text_body(body: String) -> PostHttpRequest {
+ *             PostHttpRequest {
+ *                 url,
+ *                 user_agent: user_agent.to_string(),
+ *                 authorization,
+ *                 body: HttpBody::Text(body),
+ *             }
+ *         }
+ * 
+ *         fn with_json_body(json: JsonValue) -> PostHttpRequest {
+ *             PostHttpRequest {
+ *                 url,
+ *                 user_agent: user_agent.to_string(),
+ *                 authorization,
+ *                 body: HttpBody::Json(json),
+ *             }
+ *         }
+ *     }
+ * }
+ * ```
+ * Chaining with a `.{ … }` block gives you the possibility to define alternatives. Inside such a block,
+ * each possible continuation starts with the `fn` keyword and can itself be a method chain, possibly
+ * including other alternatives recursively. Each branch of the corresponding tree of method chains
+ * can provide a distinct implementation and even return a distinct type:
+ * ```ignore
+ * let get_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
+ *     .from("FireFox")
+ *     .with_authorization(HttpAuthorization::None)
+ *     .as_get();
+ * 
+ * let post_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
+ *     .from("FireFox")
+ *     .with_authorization(HttpAuthorization::Bearer("sometoken3456=".to_string()))
+ *     .as_post()
+ *     .with_text_body("Hello world".to_string());
+ * ```
+ * 
+ * ## Current limitations
+ * 
+ * ### No implicit lifetimes
+ * 
+ * Assemblist does not handle implicit lifetimes for now so you must declare them explicitely. Each method
+ * inside the method chain can carry its own lifetimes
+ * ```ignore
+ * fn pour_items_from<'a, T>(source: &'a mut Vec<T>)
+ *     .starting_at(n: usize)
+ *     .into<'b>(destination: &'b mut Vec<T>)
+ * {
+ *     for item in source.drain(n..) {
+ *         destination.push(item);
+ *     }
+ * }
+ * ```
+ * 
+ * ### No patterns for arguments
+ * 
+ * You cannot use patterns for methods arguments as in `f((a, b): (usize, bool))` or in `g(ref r: f64)`. If
+ * you need to do this, just use plain argument names and destructure them inside the body:
+ * ```ignore
+ * fn f(pair: (usize, bool)).g(x: f64) {
+ *     let (a, b) = pair;
+ *     let ref r = x;
  * }
  * ```
  */
