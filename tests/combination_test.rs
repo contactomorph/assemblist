@@ -106,7 +106,9 @@ fn convert_method_chain_with_two_references() {
     let mut source = vec![-23, 45, 6, 0, -9];
     let mut destination = vec![8, -1, 43, 61, -102];
 
-    pour_items_from(&mut source).starting_at(2).into(&mut destination);
+    pour_items_from(&mut source)
+        .starting_at(2)
+        .into(&mut destination);
 
     assert_eq!(2, source.len());
     assert_eq!(8, destination.len());
