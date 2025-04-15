@@ -1,16 +1,42 @@
-use super::chain::BrowsingChain;
-use crate::model::tree::{BranchTail, Trunk};
+use super::{
+    chain::BrowsingChain, methods::produce_method, prelude::produce_prelude,
+    root_impl::produce_root_impl,
+};
+use crate::model::tree::{BranchTail, Trunk, TrunkAlternative};
 use proc_macro2::TokenStream;
 
 pub type FlatteningResult = std::result::Result<(), TokenStream>;
 
 pub fn flatten_trunk(
-    stream: &mut TokenStream,
+    tokens: &mut TokenStream,
     trunk: &Trunk,
     mut f: impl FnMut(&mut TokenStream, &Trunk, &BrowsingChain, &BranchTail) -> FlatteningResult,
 ) -> FlatteningResult {
-    let chain = BrowsingChain::new(&trunk.branch.section)?;
-    f(stream, trunk, &chain, &trunk.branch.tail)
+    match &trunk.alternative {
+        TrunkAlternative::Fn { branch, .. } => {
+            let chain = BrowsingChain::new(&branch.section)?;
+            produce_prelude(trunk, tokens);
+            produce_method(&trunk.asyncness, &chain, &branch.tail, tokens);
+            f(tokens, trunk, &chain, &branch.tail)
+        }
+        TrunkAlternative::Impl { header, fn_trunks } => {
+            let mut impl_body_tokens = TokenStream::new();
+            for fn_trunk in fn_trunks {
+                let branch = &fn_trunk.branch;
+                let chain = BrowsingChain::new(&branch.section)?;
+                produce_prelude(trunk, &mut impl_body_tokens);
+                produce_method(
+                    &trunk.asyncness,
+                    &chain,
+                    &branch.tail,
+                    &mut impl_body_tokens,
+                );
+                f(tokens, trunk, &chain, &branch.tail)?;
+            }
+            produce_root_impl(&trunk.asyncness, header, &impl_body_tokens, tokens);
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]

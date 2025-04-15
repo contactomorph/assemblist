@@ -8,7 +8,7 @@
 //! The usual builder pattern is based on mutation and generally turns compile-time checks that
 //! the final object is complete to a runtime verification. Assemblist allows you to create fluent
 //! immutable builders structured as method chains like in:
-//! ```ignore
+//! ```rust
 //! fn define_movie<'a>(name: &'a str)
 //!     .released_in(release_year: usize)
 //!     .directed_by(director_name: &'a str) -> Movie
@@ -21,7 +21,7 @@
 //! }
 //! ```
 //! You can then just call it as it was declared:
-//! ```ignore
+//! ```rust
 //! let movie = define_movie("The Lobster")
 //!     .released_in(2015)
 //!     .directed_by("Yorgos Lanthimos");
@@ -41,7 +41,7 @@ mod tools;
  * A method chain is similar to a function except that its name and argument list are split into multiple sections.
  * Behind the scene, `assemblist!` actually creates as many distinct methods and generates their respective result
  * type automatically.
- * ```ignore
+ * ```rust
  * assemblist! {
  *     fn define_movie<'a>(name: &'a str)
  *         .released_in(release_year: usize)
@@ -57,14 +57,14 @@ mod tools;
  * ```
  *
  * You can then just call method chains as they are declared:
- * ```ignore
+ * ```rust
  * let movie = define_movie("The Lobster")
  *     .released_in(2015)
  *     .directed_by("Yorgos Lanthimos");
  * ```
  *
  * Multiple method chains can be declared inside the same `assemblist!{ … }` block:
- * ```ignore
+ * ```rust
  * assemblist! {
  *     fn f1(/*args*/).f2(/*args*/).f3(/*args*/) { /* code */ }
  *     fn g1(/*args*/).g2(/*args*/) { /* code */ }
@@ -80,7 +80,7 @@ mod tools;
  * allows for much more flexibility in the implementation. In fact, you do not even need to build
  * something. For example you may just want to decompose an existing function in order to clarify
  * the purpose of its parameters:
- * ```ignore
+ * ```rust
  * pub fn replace_in<'a>(text: &'a str)
  *     .occurrences_of(pattern: &'a str)
  *     .with(replacement: &'a str)
@@ -92,12 +92,12 @@ mod tools;
  * ```
  * You can actually include arbitrary complex code.
  *
- * ## Alternatives
+ * ## Declare alternatives
  *
  * The builder pattern is a very expressive method to offer alternatives to users of a library.
  * They can start with a common function name and then choose which subsequent method makes sense for
  * their specific case. Assemblist aknowledges this possibility by offering the alternative syntax:
- * ```ignore
+ * ```rust
  * fn new_http_request_to(url: Uri)
  *     .from<'a>(user_agent: &'a str)
  *     .with_authorization(authorization: HttpAuthorization).{
@@ -135,7 +135,7 @@ mod tools;
  * each possible continuation starts with the `fn` keyword and can itself be a method chain, possibly
  * including other alternatives recursively. Each branch of the corresponding tree of method chains
  * can provide a distinct implementation and even return a distinct type:
- * ```ignore
+ * ```rust
  * let get_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
  *     .from("FireFox")
  *     .with_authorization(HttpAuthorization::None)
@@ -148,13 +148,30 @@ mod tools;
  *     .with_text_body("Hello world".to_string());
  * ```
  *
+ * ## Use method chains in inherent implementations
+ *
+ * You can either declare method chains as root items, as shown in previous examples, or declare them
+ * inside inherent implementations:
+ * ```rust
+ * struct Calculation;
+ *
+ * assemblist! {
+ *     impl Calculation {
+ *         fn add(a: isize).to(b: isize) -> isize { a + b }
+ *         fn remove(a: isize).from(b: isize) -> isize { a - b }
+ *     }
+ * }
+ * ```
+ * It is even possible to declare multiple inherent implementations inside the same `assemblist!`
+ * macro invocation and to mix them with root method chains.
+ *
  * ## Current limitations
  *
  * ### No implicit lifetimes
  *
  * Assemblist does not handle implicit lifetimes for now so you must declare them explicitely. Each method
- * inside the method chain can carry its own lifetimes
- * ```ignore
+ * inside the method chain can carry its own lifetimes:
+ * ```rust
  * fn pour_items_from<'a, T>(source: &'a mut Vec<T>)
  *     .starting_at(n: usize)
  *     .into<'b>(destination: &'b mut Vec<T>)
@@ -169,10 +186,24 @@ mod tools;
  *
  * You cannot use patterns for methods arguments as in `f((a, b): (usize, bool))` or in `g(ref r: f64)`. If
  * you need to do this, just use plain argument names and destructure them inside the body:
- * ```ignore
+ * ```rust
  * fn f(pair: (usize, bool)).g(x: f64) {
  *     let (a, b) = pair;
  *     let ref r = x;
+ * }
+ * ```
+ *
+ * ### No `self` arguments
+ *
+ * For now, method chains inside inherent implementations cannot declare a `self` argument. Only "static"
+ * methods are allowed. So this example fails to compile:
+ * ```compile_fail
+ * struct MyInt(isize);
+ * 
+ * assemblist! {
+ *     impl MyInt {
+ *         fn is_between(&self, a: isize).and(b: isize) { a <= self.0 && self.0 <= b }
+ *     }
  * }
  * ```
  */

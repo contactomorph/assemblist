@@ -9,14 +9,6 @@ use super::chain::BrowsingChain;
 use super::methods::produce_method;
 use super::output::{produce_inherent_impl_header_for_output, produce_output_definition};
 
-// ⟨attr⟩ ⟨visibility⟩
-fn produce_method_prelude(trunk: &Trunk, tokens: &mut TokenStream) {
-    for attr in &trunk.attrs {
-        attr.to_tokens(tokens)
-    }
-    trunk.vis.to_tokens(tokens);
-}
-
 // #![allow(unused_imports)]
 // use super::*;
 fn produce_common_imports(tokens: &mut TokenStream) {
@@ -96,11 +88,6 @@ fn produce_module(
     chain: &BrowsingChain,
     tail: &BranchTail,
 ) -> FlatteningResult {
-    if chain.depth() == 0 {
-        produce_method_prelude(trunk, tokens);
-        produce_method(&trunk.asyncness, chain, tail, tokens);
-    }
-
     if let BranchTail::Alternative { rest, .. } = tail {
         produce_module_header(&trunk.vis, chain, tokens);
         let mut result: FlatteningResult = Ok(());
@@ -115,8 +102,8 @@ fn produce_module(
 
 pub fn flatten(tree: Tree) -> TokenStream {
     let mut tokens = TokenStream::new();
-    for trunk in &tree.roots {
-        if let Err(error) = flatten_trunk(&mut tokens, trunk, produce_module) {
+    for trunk in tree.roots {
+        if let Err(error) = flatten_trunk(&mut tokens, &trunk, produce_module) {
             return error;
         }
     }

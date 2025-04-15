@@ -24,24 +24,22 @@ impl Parse for ChainedSection {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut section: Section = input.parse()?;
 
-        let maybe_dot_token: Result<Token![.]> = input.parse();
+        let tail = if input.peek(Token![.]) {
+            let dot_token: Token![.] = input.parse()?;
+            SectionTail::Dot(dot_token)
+        } else {
+            let output: ReturnType = input.parse()?;
+            section.generics.where_clause = input.parse()?;
 
-        let tail = match maybe_dot_token {
-            Ok(dot_token) => SectionTail::Dot(dot_token),
-            Err(_) => {
-                let output: ReturnType = input.parse()?;
-                section.generics.where_clause = input.parse()?;
+            let content: ParseBuffer<'_>;
+            let brace: Brace = braced!(content in input);
 
-                let content: ParseBuffer<'_>;
-                let brace: Brace = braced!(content in input);
+            let body: TokenStream = content.parse()?;
 
-                let body: TokenStream = content.parse()?;
-
-                SectionTail::Content {
-                    output,
-                    brace,
-                    body,
-                }
+            SectionTail::Content {
+                output,
+                brace,
+                body,
             }
         };
         Ok(ChainedSection { section, tail })

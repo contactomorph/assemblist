@@ -82,3 +82,16 @@ assemblist!{
 ```
 Chaining with a `.{ … }` block gives you the possibility to define alternatives. Inside such a block, each possible continuation starts with the `fn` keyword and can itself be a method chain, possibly including other alternatives recursively. Each branch of the corresponding tree of method chains can provide a distinct implementation and even return a distinct type.
 
+## Also works for inherent implementations
+
+You can either declare method chains as root items, as shown in previous examples, or declare them inside inherent implementations:
+```rust
+struct Calculation;
+
+assemblist! {
+    impl Calculation {
+        fn add(a: isize).to(b: isize) -> isize { a + b }
+        fn remove(a: isize).from(b: isize) -> isize { a - b }
+    }
+}
+```
