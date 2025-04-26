@@ -19,9 +19,10 @@ fn produce_common_imports(tokens: &mut TokenStream) {
 // ⟨visibility⟩ mod ⟨name⟩
 fn produce_module_header(vis: &Visibility, chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
-
     if chain.depth() == 0 {
         vis.to_tokens(tokens);
+    } else {
+        syn::token::Pub { span }.to_tokens(tokens);
     }
     syn::token::Mod { span }.to_tokens(tokens);
     chain.section().ident.to_tokens(tokens);
@@ -72,13 +73,6 @@ fn produce_module_body(
     Ok(())
 }
 
-// ⟨module_header⟩ {
-//     ⟨module_body⟩
-// }
-//
-// ∨
-//
-// ⟨root_method⟩
 // ⟨module_header⟩ {
 //     ⟨module_body⟩
 // }
@@ -145,7 +139,7 @@ mod tests {
                         second :: Output :: < 'a , T > { n , text , uuid , } \
                     } \
                 } \
-                mod second { \
+                pub mod second { \
                     # ! [allow (unused_imports)] \
                     use super :: * ; \
                     pub struct Output < 'a , T > { \

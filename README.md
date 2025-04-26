@@ -90,8 +90,8 @@ struct Calculation;
 
 assemblist! {
     impl Calculation {
-        fn add(a: isize).to(b: isize) -> isize { a + b }
-        fn remove(a: isize).from(b: isize) -> isize { a - b }
+        pub fn add(a: isize).to(b: isize) -> isize { a + b }
+        pub fn remove(a: isize).from(b: isize) -> isize { a - b }
     }
 }
 ```

@@ -10,29 +10,35 @@ pub type FlatteningResult = std::result::Result<(), TokenStream>;
 pub fn flatten_trunk(
     tokens: &mut TokenStream,
     trunk: &Trunk,
-    mut f: impl FnMut(&mut TokenStream, &Trunk, &BrowsingChain, &BranchTail) -> FlatteningResult,
+    mut yield_module: impl FnMut(
+        &mut TokenStream,
+        &Trunk,
+        &BrowsingChain,
+        &BranchTail,
+    ) -> FlatteningResult,
 ) -> FlatteningResult {
     match &trunk.alternative {
         TrunkAlternative::Fn { branch, .. } => {
             let chain = BrowsingChain::new(&branch.section)?;
             produce_prelude(trunk, tokens);
             produce_method(&trunk.asyncness, &chain, &branch.tail, tokens);
-            f(tokens, trunk, &chain, &branch.tail)
+            yield_module(tokens, trunk, &chain, &branch.tail)
         }
         TrunkAlternative::Impl { header, fn_trunks } => {
             let mut impl_body_tokens = TokenStream::new();
             for fn_trunk in fn_trunks {
                 let branch = &fn_trunk.branch;
                 let chain = BrowsingChain::new(&branch.section)?;
-                produce_prelude(trunk, &mut impl_body_tokens);
+                //produce_prelude(trunk, &mut impl_body_tokens);
                 produce_method(
                     &trunk.asyncness,
                     &chain,
                     &branch.tail,
                     &mut impl_body_tokens,
                 );
-                f(tokens, trunk, &chain, &branch.tail)?;
+                yield_module(tokens, trunk, &chain, &branch.tail)?;
             }
+            produce_prelude(trunk, tokens);
             produce_root_impl(&trunk.asyncness, header, &impl_body_tokens, tokens);
             Ok(())
         }

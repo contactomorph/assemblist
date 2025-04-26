@@ -199,7 +199,7 @@ mod tools;
  * methods are allowed. So this example fails to compile:
  * ```compile_fail
  * struct MyInt(isize);
- * 
+ *
  * assemblist! {
  *     impl MyInt {
  *         fn is_between(&self, a: isize).and(b: isize) { a <= self.0 && self.0 <= b }
