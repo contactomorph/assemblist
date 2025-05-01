@@ -106,7 +106,9 @@ pub fn produce_output_deconstruction(chain: &BrowsingChain, tokens: &mut TokenSt
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
-    use crate::model::tree::{BranchTail, Trunk};
+    use crate::model::prelude::Prelude;
+    use crate::model::tree::BranchTail;
+    use crate::model::tree::Trunk;
     use crate::tools::asserts::assert_tokens_are_parsable_as;
     use proc_macro2::TokenStream;
     use quote::quote;
@@ -118,7 +120,7 @@ mod tests {
     fn collect_output_data(
         stream: &mut TokenStream,
         output_data: &mut Vec<TokenStream>,
-        trunk: &Trunk,
+        prelude: &Prelude,
         chain: &BrowsingChain,
         tail: &BranchTail,
     ) -> FlatteningResult {
@@ -137,7 +139,7 @@ mod tests {
         if let BranchTail::Alternative { rest, .. } = tail {
             let next_chain = chain.concat(&rest.0.section)?;
             let next_tail = &rest.0.tail;
-            collect_output_data(stream, output_data, trunk, &next_chain, next_tail)?
+            collect_output_data(stream, output_data, prelude, &next_chain, next_tail)?
         }
         Ok(())
     }
@@ -151,8 +153,8 @@ mod tests {
         let mut stream = TokenStream::new();
         let mut output_data = Vec::<TokenStream>::new();
 
-        flatten_trunk(&mut stream, &trunk, |stream, trunk, chain, tail| {
-            collect_output_data(stream, &mut output_data, trunk, chain, tail)
+        flatten_trunk(&mut stream, &trunk, |stream, prelude, chain, tail| {
+            collect_output_data(stream, &mut output_data, prelude, chain, tail)
         })
         .expect("Should not have failed");
 

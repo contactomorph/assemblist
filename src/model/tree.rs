@@ -1,11 +1,12 @@
 use super::chained_section::{ChainedSection, SectionTail};
+use super::prelude::Prelude;
 use super::section::Section;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::spanned::Spanned;
 use syn::token::Brace;
-use syn::{braced, Attribute, Error, Generics, Result, ReturnType, Token, Visibility};
+use syn::{braced, Error, Generics, Result, ReturnType, Token};
 
 pub enum BranchTail {
     Alternative {
@@ -25,9 +26,7 @@ pub struct Branch {
 }
 
 pub struct FnTrunk {
-    pub attrs: Vec<Attribute>,
-    pub vis: Visibility,
-    pub asyncness: Option<Token![async]>,
+    pub prelude: Prelude,
     pub fn_token: Token![fn],
     pub branch: Branch,
 }
@@ -51,9 +50,7 @@ pub enum TrunkAlternative {
 }
 
 pub struct Trunk {
-    pub attrs: Vec<Attribute>,
-    pub vis: Visibility,
-    pub asyncness: Option<Token![async]>,
+    pub prelude: Prelude,
     pub alternative: TrunkAlternative,
 }
 
@@ -113,16 +110,12 @@ impl Parse for Branch {
 
 impl Parse for FnTrunk {
     fn parse(input: ParseStream) -> Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
-        let vis: Visibility = input.parse()?;
-        let asyncness: Option<Token![async]> = input.parse()?;
+        let prelude: Prelude = input.parse()?;
         let fn_token: Token![fn] = input.parse()?;
         let branch: Branch = input.parse()?;
 
         Ok(FnTrunk {
-            attrs,
-            vis,
-            asyncness,
+            prelude,
             fn_token,
             branch,
         })
@@ -131,20 +124,19 @@ impl Parse for FnTrunk {
 
 impl Parse for Trunk {
     fn parse(input: ParseStream) -> Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
         // We let the compiler handle correct use of visibility and asyncness:
         // If such concepts are declared for impl, the compiler will complain.
-        let vis: Visibility = input.parse()?;
-        let asyncness: Option<Token![async]> = input.parse()?;
+        let prelude: Prelude = input.parse()?;
 
         if input.peek(Token![fn]) {
             let fn_token: Token![fn] = input.parse()?;
             let branch: Branch = input.parse()?;
+
+            let alternative = TrunkAlternative::Fn { fn_token, branch };
+
             Ok(Trunk {
-                attrs,
-                vis,
-                asyncness,
-                alternative: TrunkAlternative::Fn { fn_token, branch },
+                prelude,
+                alternative,
             })
         } else if input.peek(Token![impl]) {
             let impl_token: Token![impl] = input.parse()?;
@@ -184,11 +176,11 @@ impl Parse for Trunk {
                 fn_trunks.push(fn_trunk);
             }
 
+            let alternative = TrunkAlternative::Impl { header, fn_trunks };
+
             Ok(Trunk {
-                attrs,
-                vis,
-                asyncness,
-                alternative: TrunkAlternative::Impl { header, fn_trunks },
+                prelude,
+                alternative,
             })
         } else {
             Err(Error::new(input.span(), "expected one of: `fn`, `impl`"))
@@ -242,11 +234,7 @@ impl ToTokens for Branch {
 
 impl ToTokens for FnTrunk {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        for attr in &self.attrs {
-            attr.to_tokens(tokens);
-        }
-        self.vis.to_tokens(tokens);
-        self.asyncness.to_tokens(tokens);
+        self.prelude.to_tokens(tokens);
         self.fn_token.to_tokens(tokens);
         self.branch.to_tokens(tokens);
     }
@@ -254,11 +242,7 @@ impl ToTokens for FnTrunk {
 
 impl ToTokens for Trunk {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        for attr in &self.attrs {
-            attr.to_tokens(tokens);
-        }
-        self.vis.to_tokens(tokens);
-        self.asyncness.to_tokens(tokens);
+        self.prelude.to_tokens(tokens);
         match &self.alternative {
             TrunkAlternative::Fn { fn_token, branch } => {
                 fn_token.to_tokens(tokens);

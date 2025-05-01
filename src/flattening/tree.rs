@@ -1,13 +1,14 @@
 use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
-use crate::model::tree::{Branch, BranchTail, Tree, Trunk};
+use crate::model::prelude::Prelude;
+use crate::model::tree::{Branch, BranchTail, Tree};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::token::Brace;
-use syn::Visibility;
 
 use super::chain::BrowsingChain;
 use super::methods::produce_method;
 use super::output::{produce_inherent_impl_header_for_output, produce_output_definition};
+use super::prelude::produce_short_prelude;
 
 // #![allow(unused_imports)]
 // use super::*;
@@ -16,11 +17,15 @@ fn produce_common_imports(tokens: &mut TokenStream) {
     tokens.extend(use_stream);
 }
 
-// ⟨visibility⟩ mod ⟨name⟩
-fn produce_module_header(vis: &Visibility, chain: &BrowsingChain, tokens: &mut TokenStream) {
+// ⟨prelude⟩ mod ⟨name⟩
+//
+// ∨
+//
+// pub mod ⟨name⟩
+fn produce_module_header(prelude: &Prelude, chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     if chain.depth() == 0 {
-        vis.to_tokens(tokens);
+        produce_short_prelude(prelude, tokens);
     } else {
         syn::token::Pub { span }.to_tokens(tokens);
     }
@@ -39,7 +44,7 @@ fn produce_module_header(vis: &Visibility, chain: &BrowsingChain, tokens: &mut T
 // …
 // ⟨sub_moduleN⟩
 fn produce_module_body(
-    trunk: &Trunk,
+    prelude: &Prelude,
     rest: &(Branch, Vec<Branch>),
     chain: &BrowsingChain,
     tokens: &mut TokenStream,
@@ -47,7 +52,7 @@ fn produce_module_body(
     produce_common_imports(tokens);
     produce_output_definition(chain, tokens);
 
-    let asyncness = &trunk.asyncness;
+    let asyncness = &prelude.asyncness;
     let mut continuations = Vec::<(BrowsingChain, &BranchTail)>::new();
 
     let first_chain = chain.concat(&rest.0.section)?;
@@ -68,7 +73,7 @@ fn produce_module_body(
     });
 
     for (next_chain, next_tail) in continuations {
-        produce_module(tokens, trunk, &next_chain, next_tail)?
+        produce_module(tokens, prelude, &next_chain, next_tail)?
     }
     Ok(())
 }
@@ -78,15 +83,15 @@ fn produce_module_body(
 // }
 fn produce_module(
     tokens: &mut TokenStream,
-    trunk: &Trunk,
+    prelude: &Prelude,
     chain: &BrowsingChain,
     tail: &BranchTail,
 ) -> FlatteningResult {
     if let BranchTail::Alternative { rest, .. } = tail {
-        produce_module_header(&trunk.vis, chain, tokens);
+        produce_module_header(prelude, chain, tokens);
         let mut result: FlatteningResult = Ok(());
         Brace::default().surround(tokens, |tokens| {
-            result = produce_module_body(trunk, rest, chain, tokens);
+            result = produce_module_body(prelude, rest, chain, tokens);
         });
         result
     } else {

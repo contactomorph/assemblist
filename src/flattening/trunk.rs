@@ -1,8 +1,13 @@
 use super::{
-    chain::BrowsingChain, methods::produce_method, prelude::produce_prelude,
+    chain::BrowsingChain,
+    methods::produce_method,
+    prelude::{produce_complete_prelude, produce_short_prelude},
     root_impl::produce_root_impl,
 };
-use crate::model::tree::{BranchTail, Trunk, TrunkAlternative};
+use crate::model::{
+    prelude::Prelude,
+    tree::{BranchTail, Trunk, TrunkAlternative},
+};
 use proc_macro2::TokenStream;
 
 pub type FlatteningResult = std::result::Result<(), TokenStream>;
@@ -12,7 +17,7 @@ pub fn flatten_trunk(
     trunk: &Trunk,
     mut yield_module: impl FnMut(
         &mut TokenStream,
-        &Trunk,
+        &Prelude,
         &BrowsingChain,
         &BranchTail,
     ) -> FlatteningResult,
@@ -20,26 +25,26 @@ pub fn flatten_trunk(
     match &trunk.alternative {
         TrunkAlternative::Fn { branch, .. } => {
             let chain = BrowsingChain::new(&branch.section)?;
-            produce_prelude(trunk, tokens);
-            produce_method(&trunk.asyncness, &chain, &branch.tail, tokens);
-            yield_module(tokens, trunk, &chain, &branch.tail)
+            produce_short_prelude(&trunk.prelude, tokens);
+            produce_method(&trunk.prelude.asyncness, &chain, &branch.tail, tokens);
+            yield_module(tokens, &trunk.prelude, &chain, &branch.tail)
         }
         TrunkAlternative::Impl { header, fn_trunks } => {
             let mut impl_body_tokens = TokenStream::new();
             for fn_trunk in fn_trunks {
                 let branch = &fn_trunk.branch;
                 let chain = BrowsingChain::new(&branch.section)?;
-                //produce_prelude(trunk, &mut impl_body_tokens);
+                produce_short_prelude(&fn_trunk.prelude, &mut impl_body_tokens);
                 produce_method(
-                    &trunk.asyncness,
+                    &fn_trunk.prelude.asyncness,
                     &chain,
                     &branch.tail,
                     &mut impl_body_tokens,
                 );
-                yield_module(tokens, trunk, &chain, &branch.tail)?;
+                yield_module(tokens, &fn_trunk.prelude, &chain, &branch.tail)?;
             }
-            produce_prelude(trunk, tokens);
-            produce_root_impl(&trunk.asyncness, header, &impl_body_tokens, tokens);
+            produce_complete_prelude(&trunk.prelude, tokens);
+            produce_root_impl(header, &impl_body_tokens, tokens);
             Ok(())
         }
     }
@@ -49,7 +54,9 @@ pub fn flatten_trunk(
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
-    use crate::model::tree::{BranchTail, Trunk};
+    use crate::model::prelude::Prelude;
+    use crate::model::tree::BranchTail;
+    use crate::model::tree::Trunk;
     use crate::tools::asserts::assert_tokens_are_parsable_as;
 
     use proc_macro2::TokenStream;
@@ -58,12 +65,12 @@ mod tests {
     fn analyse_branch(
         stream: &mut TokenStream,
         calls: &mut usize,
-        trunk: &Trunk,
+        prelude: &Prelude,
         chain: &BrowsingChain,
         tail: &BranchTail,
     ) -> FlatteningResult {
         *calls += 1;
-        assert!(trunk.asyncness.is_none());
+        assert!(prelude.asyncness.is_none());
         match chain.depth() {
             0 => {
                 assert!(chain.previous().is_none());
@@ -90,7 +97,7 @@ mod tests {
         if let BranchTail::Alternative { rest, .. } = tail {
             let next_chain = chain.concat(&rest.0.section)?;
             let next_tail = &rest.0.tail;
-            analyse_branch(stream, calls, trunk, &next_chain, next_tail)?;
+            analyse_branch(stream, calls, prelude, &next_chain, next_tail)?;
         }
         Ok(())
     }
@@ -104,8 +111,8 @@ mod tests {
         let mut calls = 0;
         let mut stream = TokenStream::new();
 
-        flatten_trunk(&mut stream, &trunk, |stream, trunk, chain, tail| {
-            analyse_branch(stream, &mut calls, trunk, chain, tail)
+        flatten_trunk(&mut stream, &trunk, |stream, prelude, chain, tail| {
+            analyse_branch(stream, &mut calls, prelude, chain, tail)
         })
         .expect("Should not have failed");
 

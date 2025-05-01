@@ -85,6 +85,7 @@ pub fn produce_method(
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
+    use crate::model::prelude::Prelude;
     use crate::model::tree::{BranchTail, Trunk};
     use crate::tools::asserts::assert_tokens_are_parsable_as;
     use proc_macro2::TokenStream;
@@ -95,18 +96,18 @@ mod tests {
     fn collect_method_data(
         stream: &mut TokenStream,
         method_data: &mut Vec<TokenStream>,
-        trunk: &Trunk,
+        prelude: &Prelude,
         chain: &BrowsingChain,
         tail: &BranchTail,
     ) -> FlatteningResult {
         let mut method = TokenStream::new();
-        produce_method(&trunk.asyncness, chain, tail, &mut method);
+        produce_method(&prelude.asyncness, chain, tail, &mut method);
         method_data.push(method);
 
         if let BranchTail::Alternative { rest, .. } = tail {
             let next_chain = chain.concat(&rest.0.section)?;
             let next_tail = &rest.0.tail;
-            collect_method_data(stream, method_data, trunk, &next_chain, next_tail)?
+            collect_method_data(stream, method_data, prelude, &next_chain, next_tail)?
         }
         Ok(())
     }
