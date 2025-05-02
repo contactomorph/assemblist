@@ -1,5 +1,7 @@
 /target
+/asserts/target
 
 Cargo.lock
+/asserts/Cargo.lock
 
 **/*.orig

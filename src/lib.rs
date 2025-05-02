@@ -32,7 +32,6 @@ use proc_macro::{Literal, TokenStream, TokenTree};
 use syn::parse_macro_input;
 mod flattening;
 mod model;
-mod tools;
 
 /**
  * The point of this crate. Allows to generate fluent immutable builders based on method chains.

@@ -57,7 +57,6 @@ mod tests {
     use crate::model::prelude::Prelude;
     use crate::model::tree::BranchTail;
     use crate::model::tree::Trunk;
-    use crate::tools::asserts::assert_tokens_are_parsable_as;
 
     use proc_macro2::TokenStream;
     use quote::quote;
@@ -106,7 +105,7 @@ mod tests {
     fn test_trunk() {
         let tokens = quote!(fn first<'a, T>(text: &'a str).second<U>(n: &'a mut i32, ok: bool,) {});
 
-        let trunk = assert_tokens_are_parsable_as::<Trunk>(tokens);
+        let trunk = asserts::tokens_are_parsable_as::<Trunk>(tokens);
 
         let mut calls = 0;
         let mut stream = TokenStream::new();

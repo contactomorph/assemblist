@@ -80,10 +80,6 @@ impl UsualArg {
 
 #[cfg(test)]
 mod tests {
-    use crate::tools::asserts::{
-        assert_failure, assert_tokens_are_not_matching_punctuated,
-        assert_tokens_are_parsable_punctuated_as,
-    };
     use quote::quote;
     use syn::{token::Comma, FnArg};
 
@@ -93,7 +89,7 @@ mod tests {
     fn parse_usual_args() {
         let tokens = quote!(text: &'a str, n: i32);
 
-        let punctuated = assert_tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
+        let punctuated = asserts::tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
 
         let args =
             UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
@@ -104,7 +100,7 @@ mod tests {
 
         let tokens = quote!(pair: (usize, String), dates: Vec<Date>,);
 
-        let punctuated = assert_tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
+        let punctuated = asserts::tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
 
         let args =
             UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
@@ -115,15 +111,15 @@ mod tests {
 
         let tokens = quote!(text: &'a str, n: i32;);
 
-        assert_tokens_are_not_matching_punctuated::<FnArg, Comma>(tokens, "unexpected token");
+        asserts::tokens_are_not_matching_punctuated::<FnArg, Comma>(tokens, "unexpected token");
 
         let tokens = quote!(text: &'a str, self: Box<Self>);
 
-        let punctuated = assert_tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
+        let punctuated = asserts::tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
 
         let args = UsualArg::extract_usual_args(&punctuated);
 
-        assert_failure(
+        asserts::failure(
             args,
             "compile_error ! (\"self receiver is not supported\") ;",
         );

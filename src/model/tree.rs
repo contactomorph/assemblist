@@ -273,27 +273,26 @@ impl ToTokens for Tree {
 #[cfg(test)]
 mod tests {
     use super::{Tree, Trunk};
-    use crate::tools::asserts::{assert_tokens_are_matching, assert_tokens_are_not_matching};
     use quote::quote;
 
     #[test]
     fn parse_tree() {
         let tokens = quote!(fn first().second() {});
 
-        assert_tokens_are_matching::<Trunk>(tokens, r##"fn first () . second () { }"##);
+        asserts::tokens_are_matching::<Trunk>(tokens, "fn first () . second () { }");
 
         let tokens = quote!(fn first.second() {});
 
-        assert_tokens_are_not_matching::<Trunk>(tokens, "expected parentheses");
+        asserts::tokens_are_not_matching::<Trunk>(tokens, "expected parentheses");
 
         let tokens = quote!(
             fn first().second() { }
             fn third().fourth() { }
         );
 
-        assert_tokens_are_matching::<Tree>(
+        asserts::tokens_are_matching::<Tree>(
             tokens,
-            r##"fn first () . second () { } fn third () . fourth () { }"##,
+            "fn first () . second () { } fn third () . fourth () { }",
         );
     }
 
@@ -301,16 +300,16 @@ mod tests {
     fn parse_tree_with_trivial_branch_alternative() {
         let tokens = quote!(fn first().{ fn second() { } });
 
-        assert_tokens_are_matching::<Trunk>(tokens, r##"fn first () . second () { }"##);
+        asserts::tokens_are_matching::<Trunk>(tokens, "fn first () . second () { }");
     }
 
     #[test]
     fn parse_tree_with_real_branch_alternative() {
         let tokens = quote!(fn first().{ fn second() { } fn second_prime() { } });
 
-        assert_tokens_are_matching::<Trunk>(
+        asserts::tokens_are_matching::<Trunk>(
             tokens,
-            r##"fn first () . { fn second () { } fn second_prime () { } }"##,
+            "fn first () . { fn second () { } fn second_prime () { } }",
         );
     }
 
@@ -324,9 +323,9 @@ mod tests {
             }
         );
 
-        assert_tokens_are_matching::<Trunk>(
+        asserts::tokens_are_matching::<Trunk>(
             tokens,
-            r##"impl Zobi { fn first () . second () { } fn third () . fourth () { } }"##,
+            "impl Zobi { fn first () . second () { } fn third () . fourth () { } }",
         );
     }
 }

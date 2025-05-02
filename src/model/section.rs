@@ -103,39 +103,38 @@ fn parse_fn_arg(input: ParseStream, attrs: Vec<Attribute>) -> Result<FnArg> {
 #[cfg(test)]
 mod tests {
     use super::Section;
-    use crate::tools::asserts::{assert_tokens_are_matching, assert_tokens_are_not_matching};
     use quote::quote;
 
     #[test]
     fn parse_section() {
         let tokens = quote!(naked());
 
-        assert_tokens_are_matching::<Section>(tokens, r##"naked ()"##);
+        asserts::tokens_are_matching::<Section>(tokens, "naked ()");
 
         let tokens = quote!(get_first<T: Debug>(vec: Vec<T>));
 
-        assert_tokens_are_matching::<Section>(
+        asserts::tokens_are_matching::<Section>(
             tokens,
-            r##"get_first < T : Debug > (vec : Vec < T >)"##,
+            "get_first < T : Debug > (vec : Vec < T >)",
         );
 
         let tokens = quote!(find<'a>(collection: &'a Collection));
 
-        assert_tokens_are_matching::<Section>(
+        asserts::tokens_are_matching::<Section>(
             tokens,
-            r##"find < 'a > (collection : & 'a Collection)"##,
+            "find < 'a > (collection : & 'a Collection)",
         );
 
         let tokens = quote!(f(,));
 
-        assert_tokens_are_not_matching::<Section>(
+        asserts::tokens_are_not_matching::<Section>(
             tokens,
             "expected one of: identifier, `::`, `<`, `_`, literal, `const`, `ref`, `mut`, `&`, parentheses, square brackets, `..`, `const`",
         );
 
         let tokens = quote!(f(x:));
 
-        assert_tokens_are_not_matching::<Section>(
+        asserts::tokens_are_not_matching::<Section>(
             tokens,
             "unexpected end of input, expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime",
         );
