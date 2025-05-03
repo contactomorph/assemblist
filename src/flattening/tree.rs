@@ -33,9 +33,14 @@ mod tests {
             "pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
                 first :: Output :: < 'a > { text , uuid , }
             }
+            # [doc = \"Intermediary module for partial method chain [`first`](fn@first)`(…).…`\"]
+            # [doc = \"\"]
+            # [doc = \"Following method chains are supported:\"]
+            # [doc = \"- [`first`](fn@first)`(…).`[`second`](method@first::Output::second)`(…).`[`third`](method@first::second::Output::third)`(…)`\"]
             pub (crate) mod first {
                 # ! [allow (unused_imports)]
                 use super :: * ;
+                # [doc = \"Intermediary type returned by partial method chain [`first`](fn@super::first)`(…).…`\"]
                 pub struct Output < 'a > {
                     pub (super) text : & 'a str ,
                     pub (super) uuid : Uuid ,
@@ -47,9 +52,14 @@ mod tests {
                         second :: Output :: < 'a , T > { n , text , uuid , }
                     }
                 }
+                # [doc = \"Intermediary module for partial method chain [`first`](fn@super::first)`(…).`[`second`](method@Output::second)`(…).…`\"]
+                # [doc = \"\"]
+                # [doc = \"Following method chains are supported:\"]
+                # [doc = \"- [`first`](fn@super::first)`(…).`[`second`](method@Output::second)`(…).`[`third`](method@second::Output::third)`(…)`\"]
                 pub mod second {
                     # ! [allow (unused_imports)]
                     use super :: * ;
+                    # [doc = \"Intermediary type returned by partial method chain [`first`](fn@super::super::first)`(…).`[`second`](method@super::Output::second)`(…).…`\"]
                     pub struct Output < 'a , T > {
                         pub (super) n : & 'a mut T ,
                         pub (super) text : & 'a str ,
