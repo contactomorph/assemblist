@@ -1,5 +1,6 @@
 pub mod chain;
-pub mod methods;
+pub mod method;
+pub mod module;
 pub mod ordered_gens;
 pub mod output;
 pub mod prelude;

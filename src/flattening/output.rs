@@ -106,9 +106,9 @@ pub fn produce_output_deconstruction(chain: &BrowsingChain, tokens: &mut TokenSt
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
+    use crate::model::branch::BranchTail;
     use crate::model::prelude::Prelude;
-    use crate::model::tree::BranchTail;
-    use crate::model::tree::Trunk;
+    use crate::model::trunk::Trunk;
     use proc_macro2::TokenStream;
     use quote::quote;
 

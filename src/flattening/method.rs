@@ -2,7 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{token::Brace, Token};
 
-use crate::model::tree::BranchTail;
+use crate::model::branch::BranchTail;
 
 use super::{
     chain::BrowsingChain,
@@ -85,8 +85,9 @@ pub fn produce_method(
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
+    use crate::model::branch::BranchTail;
     use crate::model::prelude::Prelude;
-    use crate::model::tree::{BranchTail, Trunk};
+    use crate::model::trunk::Trunk;
     use proc_macro2::TokenStream;
     use quote::quote;
 

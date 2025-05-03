@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 
 use quote::ToTokens;
 
-use crate::model::tree::ImplHeader;
+use crate::model::trunk::ImplHeader;
 
 // impl⟨generics⟩ ⟨self_type⟩ {
 //   ⟨impl_body⟩

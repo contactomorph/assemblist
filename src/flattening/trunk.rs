@@ -1,12 +1,13 @@
 use super::{
     chain::BrowsingChain,
-    methods::produce_method,
+    method::produce_method,
     prelude::{produce_complete_prelude, produce_short_prelude},
     root_impl::produce_root_impl,
 };
 use crate::model::{
+    branch::BranchTail,
     prelude::Prelude,
-    tree::{BranchTail, Trunk, TrunkAlternative},
+    trunk::{Trunk, TrunkAlternative},
 };
 use proc_macro2::TokenStream;
 
@@ -54,9 +55,9 @@ pub fn flatten_trunk(
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
+    use crate::model::branch::BranchTail;
     use crate::model::prelude::Prelude;
-    use crate::model::tree::BranchTail;
-    use crate::model::tree::Trunk;
+    use crate::model::trunk::Trunk;
 
     use proc_macro2::TokenStream;
     use quote::quote;
