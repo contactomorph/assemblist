@@ -34,7 +34,7 @@ pub fn flatten_trunk(
             let mut impl_body_tokens = TokenStream::new();
             for fn_trunk in fn_trunks {
                 let branch = &fn_trunk.branch;
-                let chain = BrowsingChain::new(&branch.section)?;
+                let chain = BrowsingChain::new_root_impl(&header.self_ty, &branch.section)?;
                 produce_short_prelude(&fn_trunk.prelude, &mut impl_body_tokens);
                 produce_method(
                     &fn_trunk.prelude.asyncness,

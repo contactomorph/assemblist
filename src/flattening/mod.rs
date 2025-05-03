@@ -1,4 +1,5 @@
 pub mod chain;
+pub mod doc;
 pub mod method;
 pub mod module;
 pub mod ordered_gens;

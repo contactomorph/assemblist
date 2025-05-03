@@ -5,7 +5,7 @@ use syn::{
     Ident,
 };
 
-use super::chain::BrowsingChain;
+use super::{chain::BrowsingChain, doc::produce_linked_doc_for_output};
 
 // pub struct Output ⟨generics⟩ {
 //      pub (super) ⟨field1⟩: ⟨ty1⟩,
@@ -15,6 +15,7 @@ use super::chain::BrowsingChain;
 pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
 
+    produce_linked_doc_for_output(chain, tokens);
     syn::token::Pub { span }.to_tokens(tokens);
     syn::token::Struct { span }.to_tokens(tokens);
     Ident::new("Output", span).to_tokens(tokens);
@@ -158,9 +159,10 @@ mod tests {
         .expect("Should not have failed");
 
         assert_eq!(6, output_data.len());
-        assert_eq!(
+        asserts::equivalent!(
             output_data[0].to_string().as_str(),
-            "pub struct Output < 'a > { pub (super) text : & 'a str , }"
+            "# [doc = \"Intermediary type returned by partial method chain [`first`](fn@super::first)`(…).…`\"]
+            pub struct Output < 'a > { pub (super) text : & 'a str , }"
         );
         assert_eq!(
             output_data[1].to_string().as_str(),
@@ -170,9 +172,10 @@ mod tests {
             output_data[2].to_string().as_str(),
             "impl < 'a > Output < 'a >"
         );
-        assert_eq!(
+        asserts::equivalent!(
             output_data[3].to_string().as_str(),
-            "pub struct Output < 'a , T > { pub (super) n : & 'a mut T , pub (super) text : & 'a str , }"
+            "# [doc = \"Intermediary type returned by partial method chain [`first`](fn@super::super::first)`(…).`[`second`](method@super::Output::second)`(…).…`\"]
+            pub struct Output < 'a , T > { pub (super) n : & 'a mut T , pub (super) text : & 'a str , }"
         );
         assert_eq!(
             output_data[4].to_string().as_str(),

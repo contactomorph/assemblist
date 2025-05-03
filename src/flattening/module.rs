@@ -6,6 +6,7 @@ use quote::{quote, ToTokens};
 use syn::token::Brace;
 
 use super::chain::BrowsingChain;
+use super::doc::produce_linked_doc_for_module;
 use super::method::produce_method;
 use super::output::{produce_inherent_impl_header_for_output, produce_output_definition};
 use super::prelude::produce_short_prelude;
@@ -88,6 +89,7 @@ pub fn produce_module(
     tail: &BranchTail,
 ) -> FlatteningResult {
     if let BranchTail::Alternative { rest, .. } = tail {
+        produce_linked_doc_for_module(chain, tail, tokens);
         produce_module_header(prelude, chain, tokens);
         let mut result: FlatteningResult = Ok(());
         Brace::default().surround(tokens, |tokens| {
