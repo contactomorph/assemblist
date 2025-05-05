@@ -153,27 +153,28 @@ mod tests {
     fn parse_trunks() {
         let tokens = quote!(fn first().second() {});
 
-        asserts::tokens_are_matching::<Trunk>(tokens, "fn first () . second () { }");
+        asserts::tokens_are_matching!(Trunk, tokens, "fn first () . second () { }");
 
         let tokens = quote!(fn first.second() {});
 
-        asserts::tokens_are_not_matching::<Trunk>(tokens, "expected parentheses");
+        asserts::tokens_are_not_matching!(Trunk, tokens, "expected parentheses");
     }
 
     #[test]
     fn parse_tree_with_trivial_branch_alternative() {
         let tokens = quote!(fn first().{ fn second() { } });
 
-        asserts::tokens_are_matching::<Trunk>(tokens, "fn first () . second () { }");
+        asserts::tokens_are_matching!(Trunk, tokens, "fn first () . second () { }");
     }
 
     #[test]
     fn parse_trunk_with_real_branch_alternative() {
         let tokens = quote!(fn first().{ fn second() { } fn second_prime() { } });
 
-        asserts::tokens_are_matching::<Trunk>(
+        asserts::tokens_are_matching!(
+            Trunk,
             tokens,
-            "fn first () . { fn second () { } fn second_prime () { } }",
+            "fn first () . { fn second () { } fn second_prime () { } }"
         );
     }
 
@@ -187,9 +188,10 @@ mod tests {
             }
         );
 
-        asserts::tokens_are_matching::<Trunk>(
+        asserts::tokens_are_matching!(
+            Trunk,
             tokens,
-            "impl Zobi { fn first () . second () { } fn third () . fourth () { } }",
+            "impl Zobi { fn first () . second () { } fn third () . fourth () { } }"
         );
     }
 }

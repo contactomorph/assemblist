@@ -78,31 +78,34 @@ mod tests {
     fn parse_chained_section() {
         let tokens = quote!(naked().);
 
-        asserts::tokens_are_matching::<ChainedSection>(tokens, "naked () .");
+        asserts::tokens_are_matching!(ChainedSection, tokens, "naked () .");
 
         let tokens = quote!(get_first<T: Debug>(vec: Vec<T>) -> &T { 5 });
 
-        asserts::tokens_are_matching::<ChainedSection>(
+        asserts::tokens_are_matching!(
+            ChainedSection,
             tokens,
-            "get_first < T : Debug > (vec : Vec < T >) -> & T { 5 }",
+            "get_first < T : Debug > (vec : Vec < T >) -> & T { 5 }"
         );
 
         let tokens = quote!(find<'a>(collection: &'a Collection) { explode() });
 
-        asserts::tokens_are_matching::<ChainedSection>(
+        asserts::tokens_are_matching!(
+            ChainedSection,
             tokens,
-            "find < 'a > (collection : & 'a Collection) { explode () }",
+            "find < 'a > (collection : & 'a Collection) { explode () }"
         );
 
         let tokens = quote!(find<'a, T>(vec: &'a Vec::<T>) where T: Sync { explode() });
 
-        asserts::tokens_are_matching::<ChainedSection>(
+        asserts::tokens_are_matching!(
+            ChainedSection,
             tokens,
-            "find < 'a , T > (vec : & 'a Vec :: < T >) where T : Sync { explode () }",
+            "find < 'a , T > (vec : & 'a Vec :: < T >) where T : Sync { explode () }"
         );
 
         let tokens = quote!(naked()!);
 
-        asserts::tokens_are_not_matching::<ChainedSection>(tokens, "expected curly braces");
+        asserts::tokens_are_not_matching!(ChainedSection, tokens, "expected curly braces");
     }
 }

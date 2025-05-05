@@ -38,9 +38,10 @@ mod tests {
             fn third().fourth() { }
         );
 
-        asserts::tokens_are_matching::<Tree>(
+        asserts::tokens_are_matching!(
+            Tree,
             tokens,
-            "fn first () . second () { } fn third () . fourth () { }",
+            "fn first () . second () { } fn third () . fourth () { }"
         );
     }
 }

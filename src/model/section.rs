@@ -109,34 +109,34 @@ mod tests {
     fn parse_section() {
         let tokens = quote!(naked());
 
-        asserts::tokens_are_matching::<Section>(tokens, "naked ()");
+        asserts::tokens_are_matching!(Section, tokens, "naked ()");
 
         let tokens = quote!(get_first<T: Debug>(vec: Vec<T>));
 
-        asserts::tokens_are_matching::<Section>(
-            tokens,
-            "get_first < T : Debug > (vec : Vec < T >)",
-        );
+        asserts::tokens_are_matching!(Section, tokens, "get_first < T : Debug > (vec : Vec < T >)");
 
         let tokens = quote!(find<'a>(collection: &'a Collection));
 
-        asserts::tokens_are_matching::<Section>(
+        asserts::tokens_are_matching!(
+            Section,
             tokens,
-            "find < 'a > (collection : & 'a Collection)",
+            "find < 'a > (collection : & 'a Collection)"
         );
 
         let tokens = quote!(f(,));
 
-        asserts::tokens_are_not_matching::<Section>(
+        asserts::tokens_are_not_matching!(
+            Section,
             tokens,
-            "expected one of: identifier, `::`, `<`, `_`, literal, `const`, `ref`, `mut`, `&`, parentheses, square brackets, `..`, `const`",
+            "expected one of: identifier, `::`, `<`, `_`, literal, `const`, `ref`, `mut`, `&`, parentheses, square brackets, `..`, `const`"
         );
 
         let tokens = quote!(f(x:));
 
-        asserts::tokens_are_not_matching::<Section>(
+        asserts::tokens_are_not_matching!(
+            Section,
             tokens,
-            "unexpected end of input, expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime",
+            "unexpected end of input, expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, `dyn`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime"
         );
     }
 }

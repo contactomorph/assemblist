@@ -28,7 +28,7 @@ mod tests {
 
         let output = flatten(tree);
 
-        asserts::equivalent(
+        asserts::equivalent!(
             output.to_string().as_str(),
             "pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
                 first :: Output :: < 'a > { text , uuid , }
@@ -64,7 +64,7 @@ mod tests {
                         }
                     }
                 }
-            }",
+            }"
         );
     }
 }

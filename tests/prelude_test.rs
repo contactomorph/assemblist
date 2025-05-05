@@ -15,7 +15,7 @@ fn verify_preludes() {
         }
     };
 
-    asserts::equivalent(
+    asserts::equivalent!(
         text,
         "#[warn(dead_code)]
         pub(crate) fn who() -> who :: Output { who :: Output {} }
@@ -60,6 +60,6 @@ fn verify_preludes() {
             #[error(dead_code)]
             pub(self) fn we() -> we :: Output { we :: Output {} }
             async fn nothing() {}
-        }",
+        }"
     )
 }
