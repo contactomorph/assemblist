@@ -127,28 +127,28 @@ mod tests {
         .expect("Should not have failed");
 
         assert_eq!(3, method_data.len());
-        asserts::equivalent(
+        asserts::equivalent!(
             method_data[0].to_string().as_str(),
             "fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
                 first :: Output :: < 'a > { text , uuid , }
-            }",
+            }"
         );
-        asserts::equivalent(
+        asserts::equivalent!(
             method_data[1].to_string().as_str(),
             "pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < 'a , T > {
                 let text = self . text ;
                 let uuid = self . uuid ;
                 second :: Output :: < 'a , T > { n , text , uuid , }
-            }",
+            }"
         );
-        asserts::equivalent(
+        asserts::equivalent!(
             method_data[2].to_string().as_str(),
             "pub fn third (self , l : usize) -> i64 {
                 let n = self . n ;
                 let text = self . text ;
                 let uuid = self . uuid ;
                 compose (l , uuid , combine (text , n))
-            }",
+            }"
         );
     }
 }

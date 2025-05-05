@@ -7,38 +7,78 @@ use syn::{
     punctuated::Punctuated,
 };
 
-pub fn tokens_are_matching<T>(tokens: TokenStream, expected_text: &str)
+#[macro_export]
+macro_rules! equivalent {
+    ($a: expr, $b: expr) => {
+        match $crate::__equivalent($a, $b) {
+            Ok(_) => {},
+            Err(message) => panic!("{}", message),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! tokens_are_matching {
+    ($t: ty, $tokens: expr, $expected_text: expr) => {
+        match $crate::__tokens_are_matching::<$t>($tokens, $expected_text) {
+            Ok(_) => {},
+            Err(message) => panic!("{}", message),
+        }
+    }
+}
+
+
+#[macro_export]
+macro_rules! tokens_are_not_matching {
+    ($t: ty, $tokens: expr, $expected_text: expr) => {
+        match $crate::__tokens_are_not_matching::<$t>($tokens, $expected_text) {
+            Ok(_) => {},
+            Err(message) => panic!("{}", message),
+        }
+    }
+}
+
+pub type AssertResult = std::result::Result<(), String>;
+
+pub fn __tokens_are_matching<T>(tokens: TokenStream, expected_text: &str) -> AssertResult
 where
     T: Parse + ToTokens,
 {
     match parse2::<T>(tokens) {
         Ok(item) => {
             let s = item.to_token_stream().to_string();
-            equivalent(expected_text, s.as_str())
+            __equivalent(expected_text, s.as_str())
         }
         Err(error) => {
-            panic!(
+            let message = format!(
                 "Failed to parse type `{}`: {}",
                 std::any::type_name::<T>(),
                 error
             );
+            Err(message)
         }
     }
 }
 
-pub fn tokens_are_not_matching<T>(tokens: TokenStream, expected_error_text: &str)
+pub fn __tokens_are_not_matching<T>(tokens: TokenStream, expected_error_text: &str) -> AssertResult
 where
     T: Parse + ToTokens,
 {
     match parse2::<T>(tokens) {
         Ok(_) => {
-            panic!(
+            let message = format!(
                 "Should not be able to parse type `{}`",
                 std::any::type_name::<T>()
             );
+            Err(message)
         }
         Err(error) => {
-            assert_eq!(expected_error_text, error.to_string().as_str());
+            let error_message = error.to_string();
+            if error_message.as_str() == expected_error_text {
+                Ok(())
+            } else {
+                Err(format!(" Expected: {}\n   Actual: {}\n", expected_error_text, error_message))
+            }
         }
     }
 }
@@ -154,7 +194,7 @@ pub fn failure<T>(result: std::result::Result<T, TokenStream>, expected_error_te
     }
 }
 
-pub fn equivalent(a: &str, b: &str) {
+pub fn __equivalent(a: &str, b: &str) -> std::result::Result<(), String> {
     let mut a = simplify(a);
     let mut b = simplify(b);
 
@@ -163,7 +203,7 @@ pub fn equivalent(a: &str, b: &str) {
     loop {
         pair = (a.next(), b.next());
         match pair {
-            (None, None) => return,
+            (None, None) => return Ok(()),
             (Some(x), Some(y)) if x == y => common.push(x),
             _ => break,
         }
@@ -177,7 +217,7 @@ pub fn equivalent(a: &str, b: &str) {
     for _ in 0..common_len {
         div.push(' ')
     }
-    div.push('v');
+    div.push('↓');
     if let Some(c) = pair.0 {
         left.push(c)
     }
@@ -190,10 +230,11 @@ pub fn equivalent(a: &str, b: &str) {
     for c in b.take(remaining_len) {
         right.push(c)
     }
-    panic!(
+    let message = format!(
         "assertion `left == right` failed\n   div: {}\n  left: {}\n right: {}\n",
         div, left, right
-    )
+    );
+    Err(message)
 }
 
 fn last_to_string(chars: &[char], max_len: usize) -> String {
