@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 
-use crate::model::branch::{Branch, BranchTail};
+use crate::model::branch::{BranchTail, DocumentedBranch};
 
 use super::chain::BrowsingChain;
 use quote::{quote, ToTokens};
@@ -59,16 +59,16 @@ fn collect_fn_names_and_root_type<'a>(
 }
 
 fn produce_doc_for_all_sequences(
-    branch: &Branch,
+    branch: &DocumentedBranch,
     root_type: Option<&syn::Type>,
     fn_names: &mut Vec<String>,
     localization: usize,
     tokens: &mut TokenStream,
 ) {
-    let fn_name = branch.section.ident.to_string();
+    let fn_name = branch.branch.section.ident.to_string();
     fn_names.push(fn_name);
 
-    match &branch.tail {
+    match &branch.branch.tail {
         BranchTail::Alternative { rest, .. } => {
             produce_doc_for_all_sequences(&rest.0, root_type, fn_names, localization, tokens);
             for branch in &rest.1 {

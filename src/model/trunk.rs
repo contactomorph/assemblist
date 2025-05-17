@@ -1,5 +1,5 @@
-use super::branch::Branch;
-use super::prelude::Prelude;
+use super::branch::{Branch, DocumentedBranch};
+use super::prelude::{Intro, Prelude};
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::parse::{Parse, ParseStream};
@@ -8,7 +8,7 @@ use syn::{braced, Error, Generics, Result, Token};
 pub struct FnTrunk {
     pub prelude: Prelude,
     pub fn_token: Token![fn],
-    pub branch: Branch,
+    pub documented: DocumentedBranch,
 }
 
 pub struct ImplHeader {
@@ -21,7 +21,7 @@ pub struct ImplHeader {
 pub enum TrunkAlternative {
     Fn {
         fn_token: Token![fn],
-        branch: Branch,
+        documented: DocumentedBranch,
     },
     Impl {
         header: ImplHeader,
@@ -36,14 +36,18 @@ pub struct Trunk {
 
 impl Parse for FnTrunk {
     fn parse(input: ParseStream) -> Result<Self> {
-        let prelude: Prelude = input.parse()?;
+        let intro: Intro = input.parse()?;
         let fn_token: Token![fn] = input.parse()?;
         let branch: Branch = input.parse()?;
 
-        Ok(FnTrunk {
+        let (prelude, doc_block) = intro.split();
+
+        let documented = DocumentedBranch { doc_block, branch };
+
+        Ok(Self {
             prelude,
             fn_token,
-            branch,
+            documented,
         })
     }
 }
@@ -52,15 +56,22 @@ impl Parse for Trunk {
     fn parse(input: ParseStream) -> Result<Self> {
         // We let the compiler handle correct use of visibility and asyncness:
         // If such concepts are declared for impl, the compiler will complain.
-        let prelude: Prelude = input.parse()?;
+        let intro: Intro = input.parse()?;
 
         if input.peek(Token![fn]) {
             let fn_token: Token![fn] = input.parse()?;
             let branch: Branch = input.parse()?;
 
-            let alternative = TrunkAlternative::Fn { fn_token, branch };
+            let (prelude, doc_block) = intro.split();
 
-            Ok(Trunk {
+            let documented = DocumentedBranch { doc_block, branch };
+
+            let alternative = TrunkAlternative::Fn {
+                fn_token,
+                documented,
+            };
+
+            Ok(Self {
                 prelude,
                 alternative,
             })
@@ -102,9 +113,11 @@ impl Parse for Trunk {
                 fn_trunks.push(fn_trunk);
             }
 
+            let (prelude, _) = intro.split();
+
             let alternative = TrunkAlternative::Impl { header, fn_trunks };
 
-            Ok(Trunk {
+            Ok(Self {
                 prelude,
                 alternative,
             })
@@ -116,21 +129,27 @@ impl Parse for Trunk {
 
 impl ToTokens for FnTrunk {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.documented.doc_block.to_tokens(tokens);
         self.prelude.to_tokens(tokens);
         self.fn_token.to_tokens(tokens);
-        self.branch.to_tokens(tokens);
+        self.documented.branch.to_tokens(tokens);
     }
 }
 
 impl ToTokens for Trunk {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.prelude.to_tokens(tokens);
         match &self.alternative {
-            TrunkAlternative::Fn { fn_token, branch } => {
+            TrunkAlternative::Fn {
+                fn_token,
+                documented,
+            } => {
+                documented.doc_block.to_tokens(tokens);
+                self.prelude.to_tokens(tokens);
                 fn_token.to_tokens(tokens);
-                branch.to_tokens(tokens);
+                documented.branch.to_tokens(tokens);
             }
             TrunkAlternative::Impl { header, fn_trunks } => {
+                self.prelude.to_tokens(tokens);
                 header.impl_token.to_tokens(tokens);
                 header.generics.to_tokens(tokens);
                 header.self_ty.to_tokens(tokens);
@@ -181,7 +200,7 @@ mod tests {
     #[test]
     fn parse_trunk_with_impl() {
         let tokens = quote!(
-            impl Zobi
+            impl Intro
             {
                 fn first().second() { }
                 fn third().fourth() { }
@@ -191,7 +210,7 @@ mod tests {
         asserts::tokens_are_matching!(
             Trunk,
             tokens,
-            "impl Zobi { fn first () . second () { } fn third () . fourth () { } }"
+            "impl Intro { fn first () . second () { } fn third () . fourth () { } }"
         );
     }
 }

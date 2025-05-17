@@ -1,15 +1,12 @@
-use super::{
-    chain::BrowsingChain,
-    method::produce_method,
-    prelude::{produce_complete_prelude, produce_short_prelude},
-    root_impl::produce_root_impl,
-};
+use super::{chain::BrowsingChain, method::produce_method, root_impl::produce_root_impl};
 use crate::model::{
+    attribute::DocumentationBlockView,
     branch::BranchTail,
     prelude::Prelude,
     trunk::{Trunk, TrunkAlternative},
 };
 use proc_macro2::TokenStream;
+use quote::ToTokens;
 
 pub type FlatteningResult = std::result::Result<(), TokenStream>;
 
@@ -19,32 +16,35 @@ pub fn flatten_trunk(
     mut yield_module: impl FnMut(
         &mut TokenStream,
         &Prelude,
+        &DocumentationBlockView,
         &BrowsingChain,
         &BranchTail,
     ) -> FlatteningResult,
 ) -> FlatteningResult {
     match &trunk.alternative {
-        TrunkAlternative::Fn { branch, .. } => {
+        TrunkAlternative::Fn { documented, .. } => {
+            let branch = &documented.branch;
+            let view = documented.doc_block.create_view_starting_at(0);
             let chain = BrowsingChain::new(&branch.section)?;
-            produce_short_prelude(&trunk.prelude, tokens);
-            produce_method(&trunk.prelude.asyncness, &chain, &branch.tail, tokens);
-            yield_module(tokens, &trunk.prelude, &chain, &branch.tail)
+            produce_method(&trunk.prelude, &view, &chain, &branch.tail, tokens);
+            yield_module(tokens, &trunk.prelude, &view, &chain, &branch.tail)
         }
         TrunkAlternative::Impl { header, fn_trunks } => {
             let mut impl_body_tokens = TokenStream::new();
             for fn_trunk in fn_trunks {
-                let branch = &fn_trunk.branch;
+                let branch = &fn_trunk.documented.branch;
+                let view = fn_trunk.documented.doc_block.create_view_starting_at(0);
                 let chain = BrowsingChain::new_root_impl(&header.self_ty, &branch.section)?;
-                produce_short_prelude(&fn_trunk.prelude, &mut impl_body_tokens);
                 produce_method(
-                    &fn_trunk.prelude.asyncness,
+                    &fn_trunk.prelude,
+                    &view,
                     &chain,
                     &branch.tail,
                     &mut impl_body_tokens,
                 );
-                yield_module(tokens, &fn_trunk.prelude, &chain, &branch.tail)?;
+                yield_module(tokens, &fn_trunk.prelude, &view, &chain, &branch.tail)?;
             }
-            produce_complete_prelude(&trunk.prelude, tokens);
+            trunk.prelude.to_tokens(tokens);
             produce_root_impl(header, &impl_body_tokens, tokens);
             Ok(())
         }
@@ -95,8 +95,8 @@ mod tests {
             _ => {}
         }
         if let BranchTail::Alternative { rest, .. } = tail {
-            let next_chain = chain.concat(&rest.0.section)?;
-            let next_tail = &rest.0.tail;
+            let next_chain = chain.concat(&rest.0.branch.section)?;
+            let next_tail = &rest.0.branch.tail;
             analyse_branch(stream, calls, prelude, &next_chain, next_tail)?;
         }
         Ok(())
@@ -111,7 +111,7 @@ mod tests {
         let mut calls = 0;
         let mut stream = TokenStream::new();
 
-        flatten_trunk(&mut stream, &trunk, |stream, prelude, chain, tail| {
+        flatten_trunk(&mut stream, &trunk, |stream, prelude, _, chain, tail| {
             analyse_branch(stream, &mut calls, prelude, chain, tail)
         })
         .expect("Should not have failed");

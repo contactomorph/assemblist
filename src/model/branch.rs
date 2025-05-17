@@ -1,3 +1,4 @@
+use super::attribute::{AttributeBlock, DocumentationBlock};
 use super::chained_section::{ChainedSection, SectionTail};
 use super::section::Section;
 use proc_macro2::TokenStream;
@@ -5,12 +6,17 @@ use quote::ToTokens;
 use syn::parse::{Parse, ParseBuffer, ParseStream};
 use syn::spanned::Spanned;
 use syn::token::Brace;
-use syn::{braced, Result, ReturnType, Token};
+use syn::{braced, Error, Result, ReturnType, Token};
+
+pub struct DocumentedBranch {
+    pub doc_block: DocumentationBlock,
+    pub branch: Branch,
+}
 
 pub enum BranchTail {
     Alternative {
         dot: Token![.],
-        rest: Box<(Branch, Vec<Branch>)>,
+        rest: Box<(DocumentedBranch, Vec<DocumentedBranch>)>,
     },
     Leaf {
         output: ReturnType,
@@ -30,13 +36,38 @@ fn try_parse_brace(input: ParseStream) -> Result<ParseBuffer<'_>> {
     Ok(content)
 }
 
-fn try_parse_branches(input: ParseStream) -> Result<Box<(Branch, Vec<Branch>)>> {
+fn try_parse_branches(
+    input: ParseStream,
+) -> Result<Box<(DocumentedBranch, Vec<DocumentedBranch>)>> {
+    let mut attr_block: AttributeBlock = input.parse()?;
+    let doc_block = DocumentationBlock::extract_from(&mut attr_block);
+
+    if !attr_block.is_empty() {
+        return Err(Error::new(
+            input.span(),
+            "only document attributes are allowed here",
+        ));
+    }
+
     input.parse::<Token![fn]>()?;
-    let first_branch: Branch = input.parse()?;
-    let mut other_branches = Vec::<Branch>::new();
+
+    let branch: Branch = input.parse()?;
+    let first_branch = DocumentedBranch { doc_block, branch };
+    let mut other_branches = Vec::<DocumentedBranch>::new();
     while !input.is_empty() {
+        let mut attr_block: AttributeBlock = input.parse()?;
+        let doc_block = DocumentationBlock::extract_from(&mut attr_block);
+
+        if !attr_block.is_empty() {
+            return Err(Error::new(
+                input.span(),
+                "only document attributes are allowed here",
+            ));
+        }
+
         input.parse::<Token![fn]>()?;
         let branch: Branch = input.parse()?;
+        let branch = DocumentedBranch { doc_block, branch };
         other_branches.push(branch);
     }
     Ok(Box::new((first_branch, other_branches)))
@@ -61,7 +92,11 @@ impl Parse for Branch {
                     let rest = try_parse_branches(&inner)?;
                     BranchTail::Alternative { dot, rest }
                 } else {
-                    let rest: Branch = input.parse()?;
+                    let branch: Branch = input.parse()?;
+                    let rest = DocumentedBranch {
+                        doc_block: DocumentationBlock::new(),
+                        branch,
+                    };
                     let rest = Box::new((rest, Vec::new()));
                     BranchTail::Alternative { dot, rest }
                 }
@@ -71,6 +106,13 @@ impl Parse for Branch {
             section: section.section,
             tail,
         })
+    }
+}
+
+impl ToTokens for DocumentedBranch {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.doc_block.to_tokens(tokens);
+        self.branch.to_tokens(tokens);
     }
 }
 

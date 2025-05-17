@@ -137,8 +137,8 @@ mod tests {
         output_data.push(output_instance);
 
         if let BranchTail::Alternative { rest, .. } = tail {
-            let next_chain = chain.concat(&rest.0.section)?;
-            let next_tail = &rest.0.tail;
+            let next_chain = chain.concat(&rest.0.branch.section)?;
+            let next_tail = &rest.0.branch.tail;
             collect_output_data(stream, output_data, prelude, &next_chain, next_tail)?
         }
         Ok(())
@@ -153,7 +153,7 @@ mod tests {
         let mut stream = TokenStream::new();
         let mut output_data = Vec::<TokenStream>::new();
 
-        flatten_trunk(&mut stream, &trunk, |stream, prelude, chain, tail| {
+        flatten_trunk(&mut stream, &trunk, |stream, prelude, _, chain, tail| {
             collect_output_data(stream, &mut output_data, prelude, chain, tail)
         })
         .expect("Should not have failed");

@@ -1,14 +1,15 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{token::Brace, Token};
+use syn::token::Brace;
 
-use crate::model::branch::BranchTail;
+use crate::model::{attribute::DocumentationBlockView, branch::BranchTail, prelude::Prelude};
 
 use super::{
     chain::BrowsingChain,
     output::{
         produce_output_deconstruction, produce_output_instance, produce_output_name_with_namespace,
     },
+    prelude::produce_method_prelude,
 };
 
 // pub fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨name⟩::Output ⟨generics⟩ {
@@ -27,7 +28,8 @@ use super::{
 //   ⟨body⟩
 // }
 pub fn produce_method(
-    asyncness: &Option<Token![async]>,
+    prelude: &Prelude,
+    view: &DocumentationBlockView,
     chain: &BrowsingChain,
     tail: &BranchTail,
     tokens: &mut TokenStream,
@@ -36,12 +38,12 @@ pub fn produce_method(
     let span = Span::call_site();
     let spans = [span];
 
-    if !chain.is_last() {
-        syn::token::Pub { span }.to_tokens(tokens);
-    }
-    if let BranchTail::Leaf { .. } = tail {
-        asyncness.to_tokens(tokens);
-    }
+    let depth = chain.depth();
+    let is_deepest = matches!(tail, BranchTail::Leaf { .. });
+
+    view.section_at(depth).to_tokens(tokens);
+    produce_method_prelude(prelude, tokens, depth, is_deepest);
+
     syn::token::Fn { span }.to_tokens(tokens);
     output_section.ident.to_tokens(tokens);
     chain.generics().produce_last_contrained_generics(tokens);
@@ -85,6 +87,7 @@ pub fn produce_method(
 mod tests {
     use crate::flattening::chain::BrowsingChain;
     use crate::flattening::trunk::{flatten_trunk, FlatteningResult};
+    use crate::model::attribute::DocumentationBlockView;
     use crate::model::branch::BranchTail;
     use crate::model::prelude::Prelude;
     use crate::model::trunk::Trunk;
@@ -101,12 +104,13 @@ mod tests {
         tail: &BranchTail,
     ) -> FlatteningResult {
         let mut method = TokenStream::new();
-        produce_method(&prelude.asyncness, chain, tail, &mut method);
+        let view = DocumentationBlockView::new();
+        produce_method(prelude, &view, chain, tail, &mut method);
         method_data.push(method);
 
         if let BranchTail::Alternative { rest, .. } = tail {
-            let next_chain = chain.concat(&rest.0.section)?;
-            let next_tail = &rest.0.tail;
+            let next_chain = chain.concat(&rest.0.branch.section)?;
+            let next_tail = &rest.0.branch.tail;
             collect_method_data(stream, method_data, prelude, &next_chain, next_tail)?
         }
         Ok(())
@@ -121,15 +125,15 @@ mod tests {
         let mut stream = TokenStream::new();
         let mut method_data = Vec::<TokenStream>::new();
 
-        flatten_trunk(&mut stream, &trunk, |stream, trunk, chain, tail| {
-            collect_method_data(stream, &mut method_data, trunk, chain, tail)
+        flatten_trunk(&mut stream, &trunk, |stream, prelude, _, chain, tail| {
+            collect_method_data(stream, &mut method_data, prelude, chain, tail)
         })
         .expect("Should not have failed");
 
         assert_eq!(3, method_data.len());
         asserts::equivalent!(
             method_data[0].to_string().as_str(),
-            "fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
+            "pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
                 first :: Output :: < 'a > { text , uuid , }
             }"
         );

@@ -30,7 +30,7 @@ fn convert_method_chain_with_complex_logic() {
         pub fn consume<U>(items: Vec<U>)
             .to_feed<'b, V: std::fmt::Debug>(output: &'b mut Vec<V>)
             .and_return() -> Vec<(U, String)>
-        where for<'a> &'a U: Into<V>
+                where for<'a> &'a U: Into<V>
         {
             let mut res = Vec::<(U, String)>::new();
             for item in items {

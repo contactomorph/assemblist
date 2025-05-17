@@ -75,10 +75,10 @@ mod model;
  *
  * Contrary to many alternative crates, in Assemblist, builder patterns are not generated from
  * annotations on a struct to build, but by directly declaring method chains as if they were basic
- * constructions of the Rust language. In * addition to making their use obvious, this pattern
+ * constructions of the Rust language. In addition to making their use obvious, this pattern
  * allows for much more flexibility in the implementation. In fact, you do not even need to build
  * something. For example you may just want to decompose an existing function in order to clarify
- * the purpose of its parameters:
+ * the purpose of its parameters (enclosing macro is omitted):
  * ```rust
  * pub fn replace_in<'a>(text: &'a str)
  *     .occurrences_of(pattern: &'a str)
@@ -163,6 +163,55 @@ mod model;
  * ```
  * It is even possible to declare multiple inherent implementations inside the same `assemblist!`
  * macro invocation and to mix them with root method chains.
+ *
+ * ## How to document your chains
+ *
+ * It is possible to document individually each method inside your method chain. You just need to
+ * separate consecutive descriptions by a sequence `---`. Descriptions are assigned to methods in
+ * the same order:
+ *
+ * ```rust
+ * /// Start creating a movie by providing its title.
+ * ///---
+ * /// Provide the movies release year.
+ * ///---
+ * /// Provide the director's name and return the complete movie.
+ * fn define_movie<'a>(name: &'a str)
+ *     .released_in(release_year: usize)
+ *     .directed_by(director_name: &'a str) -> Movie { /* code */ }
+ * ```
+ *
+ * In case of alternatives, you can insert documentation blocks in front of
+ * each possible continuation. The mechanism described earlier applies
+ * recursively so you can include consecutive descriptions separated by a sequence `---`
+ * if your continuation contains multiple methods.
+ *
+ * ```rust
+ * /// Start creating an http request by providing an uri.
+ * ///---
+ * /// Provide a user agent.
+ * ///---
+ * /// Provide the authorization.
+ * fn new_http_request_to(url: Uri)
+ *     .from<'a>(user_agent: &'a str)
+ *     .with_authorization(authorization: HttpAuthorization).{
+ *
+ *     /// Specify the request is a PATCH.
+ *     ///---
+ *     /// Provide a json body and return the request.
+ *     fn as_patch().with_json_body(json: JsonValue) -> PatchHttpRequest { /* code */ }
+ *
+ *     /// Specify the request is a PATCH.
+ *     fn as_post().{
+ *
+ *         /// Provide a text body and return the request.
+ *         fn with_text_body(body: String) -> PostHttpRequest { /* code */ }
+ *
+ *         /// Provide a json body and return the request.
+ *         fn with_json_body(json: JsonValue) -> PostHttpRequest { /* code */ }
+ *     }
+ * }
+ * ```
  *
  * ## Current limitations
  *

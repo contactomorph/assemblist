@@ -1,3 +1,4 @@
+pub mod attribute;
 pub mod branch;
 pub mod chained_section;
 pub mod prelude;
