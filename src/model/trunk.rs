@@ -153,6 +153,7 @@ impl ToTokens for Trunk {
                 header.impl_token.to_tokens(tokens);
                 header.generics.to_tokens(tokens);
                 header.self_ty.to_tokens(tokens);
+                header.generics.where_clause.to_tokens(tokens);
                 header.brace_token.surround(tokens, |tokens| {
                     for fn_trunk in fn_trunks {
                         fn_trunk.to_tokens(tokens);

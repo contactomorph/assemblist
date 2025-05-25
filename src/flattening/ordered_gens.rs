@@ -17,18 +17,25 @@ impl OrderedGenericList {
         previous: Option<&OrderedGenericList>,
         generics: &Generics,
     ) -> OrderedGenericList {
-        let lifetime_gens = previous
-            .map(|l| l.lifetime_gens.clone())
-            .unwrap_or_default();
-        let const_gens = previous.map(|l| l.const_gens.clone()).unwrap_or_default();
-        let type_gens = previous.map(|l| l.type_gens.clone()).unwrap_or_default();
+        let mut lifetime_gens = Vec::<LifetimeParam>::new();
+        let mut const_gens = Vec::<ConstParam>::new();
+        let mut type_gens = Vec::<TypeParam>::new();
+        let mut where_clause = generics.where_clause.clone();
+        if let Some(list) = previous {
+            lifetime_gens = list.lifetime_gens.clone();
+            const_gens = list.const_gens.clone();
+            type_gens = list.type_gens.clone();
+            if where_clause.is_none() {
+                where_clause = list.where_clause.clone();
+            }
+        }
         let last_gens = generics.params.iter().cloned().collect();
         let mut list = OrderedGenericList {
             lifetime_gens,
             const_gens,
             type_gens,
             last_gens,
-            where_clause: generics.where_clause.clone(),
+            where_clause,
         };
         for g in generics.params.iter() {
             match g {
@@ -103,7 +110,7 @@ impl OrderedGenericList {
 
     // where ⟨constraints⟩
     pub fn produce_where_clause(&self, tokens: &mut TokenStream) {
-        self.where_clause.as_ref().to_tokens(tokens)
+        self.where_clause.to_tokens(tokens)
     }
 
     fn separate_with_comma<'a, T: 'a + ToTokens>(

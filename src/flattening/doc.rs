@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 
 use crate::model::branch::{BranchTail, DocumentedBranch};
 
-use super::chain::BrowsingChain;
+use super::chain::{BrowsingChain, RootImplHeader};
 use quote::{quote, ToTokens};
 
 pub fn produce_linked_doc_for_module<'a>(
@@ -11,11 +11,11 @@ pub fn produce_linked_doc_for_module<'a>(
     tokens: &mut TokenStream,
 ) {
     let mut fn_names = Vec::<String>::new();
-    let root_type = collect_fn_names_and_root_type(chain, &mut fn_names);
+    let root_header = collect_fn_names_and_root_header(chain, &mut fn_names);
 
     let mut intro = "Intermediary module for partial method chain ".to_string();
     let localization = fn_names.len() - 1;
-    produce_doc_for_sequence(root_type, fn_names.as_slice(), localization, &mut intro);
+    produce_doc_for_sequence(root_header, fn_names.as_slice(), localization, &mut intro);
 
     quote! {
         #[doc = #intro]
@@ -25,42 +25,47 @@ pub fn produce_linked_doc_for_module<'a>(
     .to_tokens(tokens);
 
     if let BranchTail::Alternative { rest, .. } = tail {
-        produce_doc_for_all_sequences(&rest.0, root_type, &mut fn_names, localization, tokens);
+        produce_doc_for_all_sequences(&rest.0, root_header, &mut fn_names, localization, tokens);
         for branch in &rest.1 {
-            produce_doc_for_all_sequences(branch, root_type, &mut fn_names, localization, tokens);
+            produce_doc_for_all_sequences(branch, root_header, &mut fn_names, localization, tokens);
         }
     }
 }
 
 pub fn produce_linked_doc_for_output<'a>(chain: &'a BrowsingChain<'a>, tokens: &mut TokenStream) {
     let mut fn_names = Vec::<String>::new();
-    let root_type = collect_fn_names_and_root_type(chain, &mut fn_names);
+    let root_header = collect_fn_names_and_root_header(chain, &mut fn_names);
 
     let mut comment = "Intermediary type returned by partial method chain ".to_string();
-    produce_doc_for_sequence(root_type, fn_names.as_slice(), fn_names.len(), &mut comment);
+    produce_doc_for_sequence(
+        root_header,
+        fn_names.as_slice(),
+        fn_names.len(),
+        &mut comment,
+    );
 
     quote! { #[doc = #comment] }.to_tokens(tokens);
 }
 
-fn collect_fn_names_and_root_type<'a>(
+fn collect_fn_names_and_root_header<'a>(
     chain: &'a BrowsingChain<'a>,
     fn_names: &mut Vec<String>,
-) -> Option<&'a syn::Type> {
-    let root_type;
+) -> Option<RootImplHeader<'a>> {
+    let root_header;
     if let Some(previous) = chain.previous() {
-        root_type = collect_fn_names_and_root_type(previous, fn_names);
-    } else if let Some(ty) = chain.root_type() {
-        root_type = Some(ty);
+        root_header = collect_fn_names_and_root_header(previous, fn_names);
+    } else if let Some(header) = chain.root_header() {
+        root_header = Some(header);
     } else {
-        root_type = None;
+        root_header = None;
     }
     fn_names.push(chain.section().ident.to_string());
-    root_type
+    root_header
 }
 
 fn produce_doc_for_all_sequences(
     branch: &DocumentedBranch,
-    root_type: Option<&syn::Type>,
+    root_header: Option<RootImplHeader>,
     fn_names: &mut Vec<String>,
     localization: usize,
     tokens: &mut TokenStream,
@@ -70,14 +75,14 @@ fn produce_doc_for_all_sequences(
 
     match &branch.branch.tail {
         BranchTail::Alternative { rest, .. } => {
-            produce_doc_for_all_sequences(&rest.0, root_type, fn_names, localization, tokens);
+            produce_doc_for_all_sequences(&rest.0, root_header, fn_names, localization, tokens);
             for branch in &rest.1 {
-                produce_doc_for_all_sequences(branch, root_type, fn_names, localization, tokens);
+                produce_doc_for_all_sequences(branch, root_header, fn_names, localization, tokens);
             }
         }
         BranchTail::Leaf { .. } => {
             let mut item = "- ".to_string();
-            produce_doc_for_sequence(root_type, fn_names.as_slice(), localization, &mut item);
+            produce_doc_for_sequence(root_header, fn_names.as_slice(), localization, &mut item);
             quote! { #[doc = #item] }.to_tokens(tokens);
         }
     }
@@ -86,19 +91,23 @@ fn produce_doc_for_all_sequences(
 }
 
 fn produce_doc_for_sequence(
-    root_type: Option<&syn::Type>,
+    root_header: Option<RootImplHeader>,
     fn_names: &[String],
     localisation: usize,
     doc: &mut String,
 ) {
     let mut root_type_name: Option<String> = None;
-    if let Some(syn::Type::Path(p)) = root_type {
+    if let Some(RootImplHeader {
+        root_type: syn::Type::Path(p),
+        ..
+    }) = root_header
+    {
         if let Some(ident) = p.path.get_ident() {
             root_type_name = Some(ident.to_string());
         }
     }
     for (n, fn_name) in fn_names.iter().enumerate() {
-        let is_function = n == 0 && root_type.is_none();
+        let is_function = n == 0 && root_header.is_none();
 
         if 0 < n {
             doc.push_str(".`");

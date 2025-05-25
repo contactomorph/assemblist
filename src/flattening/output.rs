@@ -7,7 +7,7 @@ use syn::{
 
 use super::{chain::BrowsingChain, doc::produce_linked_doc_for_output};
 
-// pub struct Output ⟨generics⟩ {
+// pub struct Output ⟨generics⟩ ⟨where_clause⟩ {
 //      pub (super) ⟨field1⟩: ⟨ty1⟩,
 //      …
 //      pub (super) ⟨fieldN⟩: ⟨tyN⟩,
@@ -22,6 +22,7 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     chain
         .generics()
         .produce_complete_constrained_generics(tokens);
+    chain.generics().produce_where_clause(tokens);
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
             for arg in current.args() {
@@ -53,7 +54,7 @@ pub fn produce_output_name_with_namespace(chain: &BrowsingChain, tokens: &mut To
         .produce_complete_generic_names(true, tokens);
 }
 
-// impl ⟨generics⟩ Output ⟨generics⟩
+// impl ⟨generics⟩ Output ⟨generics⟩ ⟨where_clause⟩
 pub fn produce_inherent_impl_header_for_output(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     syn::token::Impl { span }.to_tokens(tokens);
@@ -64,6 +65,7 @@ pub fn produce_inherent_impl_header_for_output(chain: &BrowsingChain, tokens: &m
     chain
         .generics()
         .produce_complete_generic_names(false, tokens);
+    chain.generics().produce_where_clause(tokens);
 }
 
 // ⟨path⟩::Output ⟨generics⟩ { ⟨field1⟩, …, ⟨fieldN⟩, }

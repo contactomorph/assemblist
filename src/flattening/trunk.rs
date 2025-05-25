@@ -34,7 +34,11 @@ pub fn flatten_trunk(
             for fn_trunk in fn_trunks {
                 let branch = &fn_trunk.documented.branch;
                 let view = fn_trunk.documented.doc_block.create_view_starting_at(0);
-                let chain = BrowsingChain::new_root_impl(&header.self_ty, &branch.section)?;
+                let chain = BrowsingChain::new_root_impl(
+                    &header.generics,
+                    &header.self_ty,
+                    &branch.section,
+                )?;
                 produce_method(
                     &fn_trunk.prelude,
                     &view,

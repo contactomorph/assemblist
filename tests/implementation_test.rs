@@ -1,3 +1,5 @@
+use std::{fmt::Debug, marker::PhantomData};
+
 use assemblist::{assemblist, assemblist_text};
 
 struct Calculation;
@@ -140,6 +142,105 @@ pub fn document_implementations() {
             #[doc = \" Provide a string to be concatenated.\"]
             fn concat < 'a > (a : & 'a str) -> concat :: Output :: < 'a > {
                 concat :: Output :: < 'a > { a, }
+            }
+        }"
+    );
+}
+
+struct VecHandling<T> {
+    ph: PhantomData<T>,
+}
+
+assemblist! {
+    impl<T> VecHandling<T> {
+        fn compute_len<'a>(v: &'a Vec<T>).and_return_it() -> usize { v.len() }
+    }
+}
+
+#[test]
+pub fn decompose_generic_implementations() {
+    let vec = vec![
+        "Alpha".to_string(),
+        "Beta".to_string(),
+        "Gamma".to_string(),
+        "Delta".to_string(),
+    ];
+    assert_eq!(4, VecHandling::compute_len(&vec).and_return_it());
+    let vec = vec![4.5, 56.0, -0.4, -2323.12, 89.03];
+    assert_eq!(5, VecHandling::compute_len(&vec).and_return_it());
+}
+
+struct DoubleWhere<T>
+where
+    T: Debug,
+{
+    ph: PhantomData<T>,
+}
+
+assemblist! {
+    impl<T> DoubleWhere<T> where T: Debug {
+        pub fn consider<'a>(x: &'a T).as_well_as<U>(y: &'a U).and_display_them() -> String where U: Debug {
+            format!("x:{:?}, y:{:?}", x, y)
+        }
+    }
+}
+
+#[test]
+pub fn decompose_generic_implementations_with_where_clause() {
+    let s = "Message".to_string();
+    let x = 99.99;
+    let result = DoubleWhere::consider(&s).as_well_as(&x).and_display_them();
+    assert_eq!(result.as_str(), "x:\"Message\", y:99.99")
+}
+
+#[test]
+pub fn verify_generic_implementations_with_where_clause() {
+    let text = assemblist_text! {
+        impl<T> DoubleWhere<T> where T: Debug {
+            pub fn consider<'a>(x: &'a T).as_well_as<U>(y: &'a U).and_display_them() -> String where U: Debug {
+                format!("x:{:?}, y:{:?}", x, y)
+            }
+        }
+    };
+
+    asserts::equivalent!(
+        text,
+        "#[doc = \"Intermediary module for partial method chain [`consider`](method@consider)`(…).…`\"]
+        #[doc = \"\"]
+        #[doc = \"Following method chains are supported:\"]
+        #[doc = \"- [`consider`](method@consider)`(…).`[`as_well_as`](method@consider::Output::as_well_as)`(…).`[`and_display_them`](method@consider::as_well_as::Output::and_display_them)`(…)`\"]
+        pub mod consider {
+            # ! [allow(unused_imports)] use super :: * ;
+            #[doc = \"Intermediary type returned by partial method chain [`consider`](method@super::consider)`(…).…`\"]
+            pub struct Output < 'a, T > where T : Debug { pub(super) x : & 'a T, }
+            impl < 'a, T > Output < 'a, T > where T : Debug {
+                pub fn as_well_as < U > (self, y : & 'a U) -> as_well_as :: Output :: < 'a, T, U > {
+                    let x = self.x;
+                    as_well_as :: Output :: < 'a, T, U > { y, x, }
+                }
+            }
+            #[doc = \"Intermediary module for partial method chain [`consider`](method@super::consider)`(…).`[`as_well_as`](method@Output::as_well_as)`(…).…`\"]
+            #[doc = \"\"]
+            #[doc = \"Following method chains are supported:\"]
+            #[doc = \"- [`consider`](method@super::consider)`(…).`[`as_well_as`](method@Output::as_well_as)`(…).`[`and_display_them`](method@as_well_as::Output::and_display_them)`(…)`\"]
+            pub mod as_well_as {
+                # ! [allow(unused_imports)] use super :: * ;
+                #[doc = \"Intermediary type returned by partial method chain [`consider`](method@super::super::consider)`(…).`[`as_well_as`](method@super::Output::as_well_as)`(…).…`\"]
+                pub struct Output < 'a, T, U > where T : Debug {
+                    pub(super) y : & 'a U,
+                    pub(super) x : & 'a T,
+                }
+                impl < 'a, T, U > Output < 'a, T, U > where T : Debug {
+                    pub fn and_display_them(self,) -> String where U : Debug {
+                        let y = self.y; let x = self.x;
+                        format! (\"x:{:?}, y:{:?}\", x, y)
+                    }
+                }
+            }
+        }
+        impl < T > DoubleWhere < T > where T : Debug {
+            pub fn consider < 'a > (x : & 'a T) -> consider :: Output :: < 'a, T > {
+                consider :: Output :: < 'a, T > { x, }
             }
         }"
     );

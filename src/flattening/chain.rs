@@ -4,9 +4,15 @@ use std::result::Result;
 use super::{ordered_gens::OrderedGenericList, usual_args::UsualArg};
 use crate::model::section::Section;
 
+#[derive(Clone, Copy)]
+pub struct RootImplHeader<'a> {
+    pub generics: &'a syn::Generics,
+    pub root_type: &'a syn::Type,
+}
+
 enum BrowsingChainLink<'a> {
     Previous(&'a BrowsingChain<'a>),
-    RootImpl(&'a syn::Type),
+    RootImpl(RootImplHeader<'a>),
     Beginning,
 }
 
@@ -24,10 +30,17 @@ impl<'a> BrowsingChain<'a> {
     }
 
     pub fn new_root_impl(
+        generics: &'a syn::Generics,
         root_type: &'a syn::Type,
         section: &'a Section,
     ) -> Result<BrowsingChain<'a>, TokenStream> {
-        Self::create(BrowsingChainLink::RootImpl(root_type), section)
+        Self::create(
+            BrowsingChainLink::RootImpl(RootImplHeader {
+                generics,
+                root_type,
+            }),
+            section,
+        )
     }
 
     pub fn concat(&'a self, section: &'a Section) -> Result<BrowsingChain<'a>, TokenStream> {
@@ -46,6 +59,10 @@ impl<'a> BrowsingChain<'a> {
         let gen_list = match link {
             BrowsingChainLink::Previous(previous) => {
                 OrderedGenericList::augment(Some(&previous.gen_list), &section.generics)
+            }
+            BrowsingChainLink::RootImpl(header) => {
+                let previous = OrderedGenericList::augment(None, header.generics);
+                OrderedGenericList::augment(Some(&previous), &section.generics)
             }
             _ => OrderedGenericList::augment(None, &section.generics),
         };
@@ -82,10 +99,10 @@ impl<'a> BrowsingChain<'a> {
         }
     }
 
-    pub fn root_type(&'a self) -> Option<&'a syn::Type> {
+    pub fn root_header(&'a self) -> Option<RootImplHeader<'a>> {
         match self.link {
-            BrowsingChainLink::Previous(previous) => previous.root_type(),
-            BrowsingChainLink::RootImpl(root_type) => Some(root_type),
+            BrowsingChainLink::Previous(previous) => previous.root_header(),
+            BrowsingChainLink::RootImpl(header) => Some(header),
             _ => None,
         }
     }
