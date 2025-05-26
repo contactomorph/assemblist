@@ -245,3 +245,123 @@ pub fn verify_generic_implementations_with_where_clause() {
         }"
     );
 }
+
+struct MyVec<T> {
+    _inner: Vec<T>,
+}
+
+impl<T> MyVec<T>
+where
+    T: Debug,
+{
+    pub fn new(data: Vec<T>) -> Self {
+        Self { _inner: data }
+    }
+}
+
+assemblist! {
+    impl<T> MyVec<T> where T: Debug {
+        pub fn take_at_most<'a>(&'a self, n: usize).comparing_to<'b, U>(other: &'b MyVec<U>).applying(f: impl Fn(&T, &U) -> bool) -> bool {
+            let m = std::cmp::min(std::cmp::min(self_._inner.len(), other._inner.len()), n);
+            for i in 0..m {
+                if !f(&self_._inner[i], &other._inner[i]) { return false }
+            }
+            true
+        }
+        pub fn at<'a>(&'a mut self, index: usize).{
+            fn insert(element: T) {
+                self_._inner.insert(index, element)
+            }
+            fn remove() -> T {
+                self_._inner.remove(index)
+            }
+        }
+    }
+}
+
+#[test]
+pub fn decompose_generic_implementations_with_self_receiver() {
+    let mut x = MyVec::new(vec!["Blue", "Orange", "Red", "Lavender"]);
+    let y = MyVec::new(vec![4, 6, 3, 8, 2002]);
+
+    assert!(x.take_at_most(8).comparing_to(&y).applying(|t, n| t.len() == *n));
+
+    x.at(1).insert("Yellow");
+    assert_eq!(5, x._inner.len());
+    x.at(2).remove();
+
+    assert!(x.take_at_most(8).comparing_to(&y).applying(|t, n| t.len() == *n));
+}
+
+#[test]
+pub fn verify_generic_implementations_with_self_receiver() {
+    let text = assemblist_text! {
+        impl<T> MyVec<T> where T: Debug {
+            pub fn take_at_most<'a>(&'a self, n: usize)
+                .comparing_to<'b, U>(other: &'b MyVec<U>)
+                .applying(f: impl Fn(&T, &U) -> bool) -> bool
+            {
+                let m = std::cmp::min(std::cmp::min(self_._inner.len(), other._inner.len()), n);
+                for i in 0..m {
+                    if !f(&self_._inner[i], &other._inner[i]) { return false }
+                }
+                true
+            }
+        }
+    };
+
+    asserts::equivalent!(
+        text,
+        "#[doc = \"Intermediary module for partial method chain [`take_at_most`](method@take_at_most)`(…).…`\"]
+        #[doc = \"\"]
+        #[doc = \"Following method chains are supported:\"]
+        #[doc = \"- [`take_at_most`](method@take_at_most)`(…).`[`comparing_to`](method@take_at_most::Output::comparing_to)`(…).`[`applying`](method@take_at_most::comparing_to::Output::applying)`(…)`\"]
+        pub mod take_at_most {
+            # ! [allow(unused_imports)]
+            use super :: * ;
+            #[doc = \"Intermediary type returned by partial method chain [`take_at_most`](method@super::take_at_most)`(…).…`\"]
+            pub struct Output < 'a, T > where T : Debug {
+                pub(super) self_ : & 'a MyVec < T > ,
+                pub(super) n : usize,
+            }
+            impl < 'a, T > Output < 'a, T > where T : Debug {
+                pub fn comparing_to < 'b, U > (self, other : & 'b MyVec < U >) -> comparing_to :: Output :: < 'a, 'b, T, U > {
+                    let self_ = self.self_;
+                    let n = self.n;
+                    comparing_to :: Output :: < 'a, 'b, T, U > { other, self_, n, }
+                }
+            }
+            #[doc = \"Intermediary module for partial method chain [`take_at_most`](method@super::take_at_most)`(…).`[`comparing_to`](method@Output::comparing_to)`(…).…`\"]
+            #[doc = \"\"]
+            #[doc = \"Following method chains are supported:\"]
+            #[doc = \"- [`take_at_most`](method@super::take_at_most)`(…).`[`comparing_to`](method@Output::comparing_to)`(…).`[`applying`](method@comparing_to::Output::applying)`(…)`\"]
+            pub mod comparing_to {
+                # ! [allow(unused_imports)]
+                use super :: * ;
+                #[doc = \"Intermediary type returned by partial method chain [`take_at_most`](method@super::super::take_at_most)`(…).`[`comparing_to`](method@super::Output::comparing_to)`(…).…`\"]
+                pub struct Output < 'a, 'b, T, U > where T : Debug {
+                    pub(super) other : & 'b MyVec < U > ,
+                    pub(super) self_ : & 'a MyVec < T > ,
+                    pub(super) n : usize,
+                }
+                impl < 'a, 'b, T, U > Output < 'a, 'b, T, U > where T : Debug {
+                    pub fn applying(self, f : impl Fn(& T, & U) -> bool) -> bool where T : Debug {
+                        let other = self.other;
+                        let self_ = self.self_;
+                        let n = self.n;
+                        let m = std :: cmp :: min(std::cmp::min(self_._inner.len(), other._inner.len()), n);
+                        for i in 0 .. m {
+                            if !f(&self_._inner[i], &other._inner[i]) { return false }
+                        }
+                        true
+                    }
+                }
+            }
+        }
+        impl < T > MyVec < T > where T : Debug {
+            pub fn take_at_most < 'a > (& 'a self, n : usize) -> take_at_most :: Output :: < 'a, T > {
+                take_at_most :: Output :: < 'a, T > { self_ : self, n, }
+            }
+        }"
+    );
+}

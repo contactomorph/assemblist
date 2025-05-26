@@ -26,14 +26,14 @@ pub fn produce_output_definition(chain: &BrowsingChain, tokens: &mut TokenStream
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
             for arg in current.args() {
-                let span = arg.colon_token.span;
+                let span = Span::call_site();
                 syn::token::Pub { span }.to_tokens(tokens);
                 Paren::default().surround(tokens, |tokens| {
                     syn::token::Super { span }.to_tokens(tokens);
                 });
-                arg.ident.to_tokens(tokens);
-                arg.colon_token.to_tokens(tokens);
-                arg.ty.to_tokens(tokens);
+                arg.push_ident_to_tokens(tokens);
+                syn::token::Colon { spans: [span] }.to_tokens(tokens);
+                arg.push_type_to_tokens(chain.root_header().map(|h| h.root_type), tokens);
                 syn::token::Comma { spans: [span] }.to_tokens(tokens);
             }
         }
@@ -72,13 +72,18 @@ pub fn produce_inherent_impl_header_for_output(chain: &BrowsingChain, tokens: &m
 pub fn produce_output_instance(chain: &BrowsingChain, tokens: &mut TokenStream) {
     let span = Span::call_site();
     let spans = [span];
+    let depth = chain.depth();
 
     produce_output_name_with_namespace(chain, tokens);
 
     Brace::default().surround(tokens, |tokens| {
         for current in chain {
             for arg in current.args() {
-                arg.ident.to_tokens(tokens);
+                arg.push_ident_to_tokens(tokens);
+                if depth == 0 && arg.is_receiver() {
+                    syn::token::Colon { spans: [span] }.to_tokens(tokens);
+                    syn::token::SelfValue { span }.to_tokens(tokens);
+                }
                 syn::token::Comma { spans }.to_tokens(tokens)
             }
         }
@@ -95,11 +100,11 @@ pub fn produce_output_deconstruction(chain: &BrowsingChain, tokens: &mut TokenSt
     for current in chain.into_iter().skip(1) {
         for arg in current.args() {
             syn::token::Let { span }.to_tokens(tokens);
-            arg.ident.to_tokens(tokens);
+            arg.push_ident_to_tokens(tokens);
             syn::token::Eq { spans }.to_tokens(tokens);
             syn::token::SelfValue { span }.to_tokens(tokens);
             syn::token::Dot { spans }.to_tokens(tokens);
-            arg.ident.to_tokens(tokens);
+            arg.push_ident_to_tokens(tokens);
             syn::token::Semi { spans }.to_tokens(tokens);
         }
     }

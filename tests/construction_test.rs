@@ -231,8 +231,6 @@ pub fn document_implementations() {
         }
     };
 
-    println!("{}", text);
-
     asserts::equivalent!(
         text,
         "#[doc = \" Provide url\"]

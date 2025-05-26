@@ -1,15 +1,77 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote_spanned, ToTokens};
 use std::result::Result;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
-use syn::{Attribute, FnArg, Ident, Pat, PatType, Token, Type};
+use syn::{Attribute, FnArg, Ident, Lifetime, Pat, PatType, Receiver, Token, Type};
+
+enum UsualArgAlternative {
+    Identified {
+        ident: Ident,
+        colon_token: Token![:],
+        ty: Box<Type>,
+    },
+    Receiver {
+        reference: Option<(Token![&], Option<Lifetime>)>,
+        mutability: Option<Token![mut]>,
+        self_token: Token![self],
+    },
+}
 
 pub struct UsualArg {
-    pub attrs: Vec<Attribute>,
-    pub ident: Ident,
-    pub colon_token: Token![:],
-    pub ty: Box<Type>,
+    attrs: Vec<Attribute>,
+    alt: UsualArgAlternative,
+}
+
+impl UsualArg {
+    pub fn is_receiver(&self) -> bool {
+        matches!(&self.alt, UsualArgAlternative::Receiver { .. })
+    }
+
+    pub fn push_ident_to_tokens(&self, tokens: &mut TokenStream) {
+        match &self.alt {
+            UsualArgAlternative::Identified { ident, .. } => ident.to_tokens(tokens),
+            UsualArgAlternative::Receiver { .. } => {
+                let span = Span::call_site();
+                Ident::new("self_", span).to_tokens(tokens);
+            }
+        }
+    }
+
+    pub fn push_type_to_tokens(&self, root_impl_type: Option<&Type>, tokens: &mut TokenStream) {
+        match &self.alt {
+            UsualArgAlternative::Identified { ty, .. } => ty.to_tokens(tokens),
+            UsualArgAlternative::Receiver {
+                reference,
+                mutability,
+                ..
+            } => match root_impl_type {
+                Some(ty) => {
+                    if let Some((ampersand, lifetime)) = reference {
+                        ampersand.to_tokens(tokens);
+                        lifetime.to_tokens(tokens);
+                    }
+                    mutability.to_tokens(tokens);
+                    ty.to_tokens(tokens);
+                }
+                None => {
+                    syn::Type::Tuple(syn::TypeTuple {
+                        paren_token: syn::token::Paren::default(),
+                        elems: Punctuated::<_, _>::new(),
+                    })
+                    .to_tokens(tokens);
+                }
+            },
+        }
+    }
+
+    #[cfg(test)]
+    fn name(&self) -> String {
+        match &self.alt {
+            UsualArgAlternative::Identified { ident, .. } => ident.to_string(),
+            UsualArgAlternative::Receiver { .. } => "self_".to_string(),
+        }
+    }
 }
 
 impl ToTokens for UsualArg {
@@ -17,9 +79,29 @@ impl ToTokens for UsualArg {
         for attr in &self.attrs {
             attr.to_tokens(tokens);
         }
-        self.ident.to_tokens(tokens);
-        self.colon_token.to_tokens(tokens);
-        self.ty.to_tokens(tokens);
+        match &self.alt {
+            UsualArgAlternative::Identified {
+                ident,
+                colon_token,
+                ty,
+            } => {
+                ident.to_tokens(tokens);
+                colon_token.to_tokens(tokens);
+                ty.to_tokens(tokens);
+            }
+            UsualArgAlternative::Receiver {
+                reference,
+                mutability,
+                self_token,
+            } => {
+                if let Some((ampersand, lifetime)) = reference {
+                    ampersand.to_tokens(tokens);
+                    lifetime.to_tokens(tokens);
+                }
+                mutability.to_tokens(tokens);
+                self_token.to_tokens(tokens);
+            }
+        }
     }
 }
 
@@ -35,9 +117,8 @@ impl UsualArg {
                     output_args.push(arg);
                 }
                 FnArg::Receiver(receiver) => {
-                    let message = "self receiver is not supported";
-                    let span = receiver.self_token.span;
-                    return Err(quote_spanned! { span => compile_error!(#message); });
+                    let arg = Self::extract_receiver(receiver)?;
+                    output_args.push(arg);
                 }
             }
         }
@@ -64,9 +145,11 @@ impl UsualArg {
                 }
                 Ok(UsualArg {
                     attrs: typed_arg.attrs.clone(),
-                    ident: pat_ident.ident.clone(),
-                    colon_token: typed_arg.colon_token,
-                    ty: typed_arg.ty.clone(),
+                    alt: UsualArgAlternative::Identified {
+                        ident: pat_ident.ident.clone(),
+                        colon_token: typed_arg.colon_token,
+                        ty: typed_arg.ty.clone(),
+                    },
                 })
             }
             _ => {
@@ -74,6 +157,24 @@ impl UsualArg {
                 let span = typed_arg.colon_token.span;
                 Err(quote_spanned! { span => compile_error!(#message); })
             }
+        }
+    }
+
+    fn extract_receiver(receiver: &Receiver) -> Result<UsualArg, TokenStream> {
+        let alt = UsualArgAlternative::Receiver {
+            reference: receiver.reference.clone(),
+            mutability: receiver.mutability,
+            self_token: receiver.self_token,
+        };
+        if let Some(colon_token) = receiver.colon_token {
+            let message = "Complex receivers type are not supported";
+            let span = colon_token.span;
+            Err(quote_spanned! { span => compile_error!(#message); })
+        } else {
+            Ok(UsualArg {
+                attrs: receiver.attrs.clone(),
+                alt,
+            })
         }
     }
 }
@@ -95,8 +196,8 @@ mod tests {
             UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
 
         assert_eq!(2, args.len());
-        assert_eq!("text", args[0].ident.to_string().as_str());
-        assert_eq!("n", args[1].ident.to_string().as_str());
+        assert_eq!("text", args[0].name().as_str());
+        assert_eq!("n", args[1].name().as_str());
 
         let tokens = quote!(pair: (usize, String), dates: Vec<Date>,);
 
@@ -106,22 +207,22 @@ mod tests {
             UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
 
         assert_eq!(2, args.len());
-        assert_eq!("pair", args[0].ident.to_string().as_str());
-        assert_eq!("dates", args[1].ident.to_string().as_str());
+        assert_eq!("pair", args[0].name().as_str());
+        assert_eq!("dates", args[1].name().as_str());
 
         let tokens = quote!(text: &'a str, n: i32;);
 
         asserts::tokens_are_not_matching_punctuated::<FnArg, Comma>(tokens, "unexpected token");
 
-        let tokens = quote!(text: &'a str, self: Box<Self>);
+        let tokens = quote!(&'a self, text: &'a str);
 
         let punctuated = asserts::tokens_are_parsable_punctuated_as::<FnArg, Comma>(tokens);
 
-        let args = UsualArg::extract_usual_args(&punctuated);
+        let args =
+            UsualArg::extract_usual_args(&punctuated).expect("Should not have conversion issue");
 
-        asserts::failure(
-            args,
-            "compile_error ! (\"self receiver is not supported\") ;",
-        );
+        assert_eq!(2, args.len());
+        assert_eq!("self_", args[0].name().as_str());
+        assert_eq!("text", args[1].name().as_str());
     }
 }
