@@ -208,13 +208,13 @@ pub fn verify_generic_implementations_with_where_clause() {
 
     asserts::equivalent!(
         text,
-        "#[doc = \"Intermediary module for partial method chain [`consider`](method@consider)`(…).…`\"]
+        "#[doc = \"Intermediary module for partial method chain [`DoubleWhere`]`::`[`consider`](method@DoubleWhere::consider)`(…).…`\"]
         #[doc = \"\"]
         #[doc = \"Following method chains are supported:\"]
-        #[doc = \"- [`consider`](method@consider)`(…).`[`as_well_as`](method@consider::Output::as_well_as)`(…).`[`and_display_them`](method@consider::as_well_as::Output::and_display_them)`(…)`\"]
+        #[doc = \"- [`DoubleWhere`]`::`[`consider`](method@DoubleWhere::consider)`(…).`[`as_well_as`](method@consider::Output::as_well_as)`(…).`[`and_display_them`](method@consider::as_well_as::Output::and_display_them)`(…)`\"]
         pub mod consider {
             # ! [allow(unused_imports)] use super :: * ;
-            #[doc = \"Intermediary type returned by partial method chain [`consider`](method@super::consider)`(…).…`\"]
+            #[doc = \"Intermediary type returned by partial method chain [`DoubleWhere`]`::`[`consider`](method@super::DoubleWhere::consider)`(…).…`\"]
             pub struct Output < 'a, T > where T : Debug { pub(super) x : & 'a T, }
             impl < 'a, T > Output < 'a, T > where T : Debug {
                 #[inline]
@@ -223,13 +223,13 @@ pub fn verify_generic_implementations_with_where_clause() {
                     as_well_as :: Output :: < 'a, T, U > { y, x, }
                 }
             }
-            #[doc = \"Intermediary module for partial method chain [`consider`](method@super::consider)`(…).`[`as_well_as`](method@Output::as_well_as)`(…).…`\"]
+            #[doc = \"Intermediary module for partial method chain [`DoubleWhere`]`::`[`consider`](method@super::DoubleWhere::consider)`(…).`[`as_well_as`](method@Output::as_well_as)`(…).…`\"]
             #[doc = \"\"]
             #[doc = \"Following method chains are supported:\"]
-            #[doc = \"- [`consider`](method@super::consider)`(…).`[`as_well_as`](method@Output::as_well_as)`(…).`[`and_display_them`](method@as_well_as::Output::and_display_them)`(…)`\"]
+            #[doc = \"- [`DoubleWhere`]`::`[`consider`](method@super::DoubleWhere::consider)`(…).`[`as_well_as`](method@Output::as_well_as)`(…).`[`and_display_them`](method@as_well_as::Output::and_display_them)`(…)`\"]
             pub mod as_well_as {
                 # ! [allow(unused_imports)] use super :: * ;
-                #[doc = \"Intermediary type returned by partial method chain [`consider`](method@super::super::consider)`(…).`[`as_well_as`](method@super::Output::as_well_as)`(…).…`\"]
+                #[doc = \"Intermediary type returned by partial method chain [`DoubleWhere`]`::`[`consider`](method@super::super::DoubleWhere::consider)`(…).`[`as_well_as`](method@super::Output::as_well_as)`(…).…`\"]
                 pub struct Output < 'a, T, U > where T : Debug {
                     pub(super) y : & 'a U,
                     pub(super) x : & 'a T,
@@ -317,14 +317,14 @@ pub fn verify_generic_implementations_with_self_receiver() {
 
     asserts::equivalent!(
         text,
-        "#[doc = \"Intermediary module for partial method chain [`take_at_most`](method@take_at_most)`(…).…`\"]
+        "#[doc = \"Intermediary module for partial method chain [`MyVec`]`::`[`take_at_most`](method@MyVec::take_at_most)`(…).…`\"]
         #[doc = \"\"]
         #[doc = \"Following method chains are supported:\"]
-        #[doc = \"- [`take_at_most`](method@take_at_most)`(…).`[`comparing_to`](method@take_at_most::Output::comparing_to)`(…).`[`applying`](method@take_at_most::comparing_to::Output::applying)`(…)`\"]
+        #[doc = \"- [`MyVec`]`::`[`take_at_most`](method@MyVec::take_at_most)`(…).`[`comparing_to`](method@take_at_most::Output::comparing_to)`(…).`[`applying`](method@take_at_most::comparing_to::Output::applying)`(…)`\"]
         pub mod take_at_most {
             # ! [allow(unused_imports)]
             use super :: * ;
-            #[doc = \"Intermediary type returned by partial method chain [`take_at_most`](method@super::take_at_most)`(…).…`\"]
+            #[doc = \"Intermediary type returned by partial method chain [`MyVec`]`::`[`take_at_most`](method@super::MyVec::take_at_most)`(…).…`\"]
             pub struct Output < 'a, T > where T : Debug {
                 pub(super) self_ : & 'a MyVec < T > ,
                 pub(super) n : usize,
@@ -337,14 +337,14 @@ pub fn verify_generic_implementations_with_self_receiver() {
                     comparing_to :: Output :: < 'a, 'b, T, U > { other, self_, n, }
                 }
             }
-            #[doc = \"Intermediary module for partial method chain [`take_at_most`](method@super::take_at_most)`(…).`[`comparing_to`](method@Output::comparing_to)`(…).…`\"]
+            #[doc = \"Intermediary module for partial method chain [`MyVec`]`::`[`take_at_most`](method@super::MyVec::take_at_most)`(…).`[`comparing_to`](method@Output::comparing_to)`(…).…`\"]
             #[doc = \"\"]
             #[doc = \"Following method chains are supported:\"]
-            #[doc = \"- [`take_at_most`](method@super::take_at_most)`(…).`[`comparing_to`](method@Output::comparing_to)`(…).`[`applying`](method@comparing_to::Output::applying)`(…)`\"]
+            #[doc = \"- [`MyVec`]`::`[`take_at_most`](method@super::MyVec::take_at_most)`(…).`[`comparing_to`](method@Output::comparing_to)`(…).`[`applying`](method@comparing_to::Output::applying)`(…)`\"]
             pub mod comparing_to {
                 # ! [allow(unused_imports)]
                 use super :: * ;
-                #[doc = \"Intermediary type returned by partial method chain [`take_at_most`](method@super::super::take_at_most)`(…).`[`comparing_to`](method@super::Output::comparing_to)`(…).…`\"]
+                #[doc = \"Intermediary type returned by partial method chain [`MyVec`]`::`[`take_at_most`](method@super::super::MyVec::take_at_most)`(…).`[`comparing_to`](method@super::Output::comparing_to)`(…).…`\"]
                 pub struct Output < 'a, 'b, T, U > where T : Debug {
                     pub(super) other : & 'b MyVec < U > ,
                     pub(super) self_ : & 'a MyVec < T > ,

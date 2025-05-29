@@ -102,8 +102,8 @@ fn produce_doc_for_sequence(
         ..
     }) = root_header
     {
-        if let Some(ident) = p.path.get_ident() {
-            root_type_name = Some(ident.to_string());
+        if let Some(segment) = p.path.segments.last() {
+            root_type_name = Some(segment.ident.to_string());
         }
     }
     for (n, fn_name) in fn_names.iter().enumerate() {
