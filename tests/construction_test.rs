@@ -234,6 +234,7 @@ pub fn document_implementations() {
     asserts::equivalent!(
         text,
         "#[doc = \" Provide url\"]
+        #[inline]
         fn new_http_request_to(url : Uri) -> new_http_request_to :: Output {
             new_http_request_to :: Output { url, }
         }
@@ -249,6 +250,7 @@ pub fn document_implementations() {
             pub struct Output { pub(super) url : Uri, }
             impl Output {
                 #[doc = \" Provide user agent\"]
+                #[inline]
                 pub fn from < 'a > (self, user_agent : & 'a str) -> from :: Output :: < 'a > {
                     let url = self.url;
                     from :: Output :: < 'a > { user_agent, url, }
@@ -270,6 +272,7 @@ pub fn document_implementations() {
                 }
                 impl < 'a > Output < 'a > {
                     #[doc = \" Provide authorization\"]
+                    #[inline]
                     pub fn with_authorization(self, authorization : HttpAuthorization) -> with_authorization :: Output :: < 'a > {
                         let user_agent = self.user_agent; let url = self.url;
                         with_authorization :: Output :: < 'a > { authorization, user_agent, url, }
@@ -298,6 +301,7 @@ pub fn document_implementations() {
                             GetHttpRequest { url, user_agent: user_agent.to_string(), authorization, }
                         }
                         #[doc = \" Create post request\"]
+                        #[inline]
                         pub fn as_post(self,) -> as_post :: Output :: < 'a > {
                             let authorization = self.authorization;
                             let user_agent = self.user_agent;

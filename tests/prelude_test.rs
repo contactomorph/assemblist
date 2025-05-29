@@ -17,7 +17,8 @@ fn verify_preludes() {
 
     asserts::equivalent!(
         text,
-        "#[warn(dead_code)]
+        "#[inline]
+        #[warn(dead_code)]
         pub(crate) fn who() -> who :: Output { who :: Output {} }
         #[doc = \"Intermediary module for partial method chain [`who`](fn@who)`(…).…`\"]
         #[doc = \"\"]
@@ -30,6 +31,7 @@ fn verify_preludes() {
             #[doc = \"Intermediary type returned by partial method chain [`who`](fn@super::who)`(…).…`\"] 
             pub struct Output {}
             impl Output {
+                #[inline]
                 pub fn are(self,) -> are :: Output { are :: Output {} }
             }
             #[doc = \"Intermediary module for partial method chain [`who`](fn@super::who)`(…).`[`are`](method@Output::are)`(…).…`\"]
@@ -59,6 +61,7 @@ fn verify_preludes() {
             #[doc = \"Intermediary type returned by partial method chain [`Foo`]`::`[`we`](method@super::Foo::we)`(…).…`\"]
             pub struct Output {}
             impl Output {
+                #[inline]
                 pub fn cannot(self,) -> cannot :: Output { cannot :: Output {} }
             }
             #[doc = \"Intermediary module for partial method chain [`Foo`]`::`[`we`](method@super::Foo::we)`(…).`[`cannot`](method@Output::cannot)`(…).…`\"]
@@ -77,6 +80,7 @@ fn verify_preludes() {
         }
         #[cfg(test)]
         impl Foo {
+            #[inline]
             #[error(dead_code)]
             pub(self) fn we() -> we :: Output { we :: Output {} }
             async fn nothing() {}

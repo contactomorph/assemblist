@@ -133,7 +133,7 @@ mod model;
  * }
  * ```
  * Inside each alternative block, continuations start with the `fn` keyword and can themselves be method chains,
- * possibly including other alternative block recursively:
+ * possibly including other alternative block recursively.
  * ```rust
  * let get_request = new_http_request_to(Uri::from_static("http://www.croco-paradise.tv"))
  *     .from("FireFox")

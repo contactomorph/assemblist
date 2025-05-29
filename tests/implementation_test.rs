@@ -105,8 +105,10 @@ pub fn document_implementations() {
         }
         impl Calculation {
             #[doc = \" Provide an integer to be added.\"]
-            fn add(a : isize) -> add :: Output { add :: Output { a, } } 
+            #[inline]
+            fn add(a : isize) -> add :: Output { add :: Output { a, } }
             #[doc = \" Provide an integer to be removed.\"]
+            #[inline]
             fn remove(a : isize) -> remove :: Output { remove :: Output { a, } }
         }
         #[doc = \"Intermediary module for partial method chain [`StringHandling`]`::`[`concat`](method@StringHandling::concat)`(…).…`\"]
@@ -140,6 +142,7 @@ pub fn document_implementations() {
         }
         impl StringHandling {
             #[doc = \" Provide a string to be concatenated.\"]
+            #[inline]
             fn concat < 'a > (a : & 'a str) -> concat :: Output :: < 'a > {
                 concat :: Output :: < 'a > { a, }
             }
@@ -214,6 +217,7 @@ pub fn verify_generic_implementations_with_where_clause() {
             #[doc = \"Intermediary type returned by partial method chain [`consider`](method@super::consider)`(…).…`\"]
             pub struct Output < 'a, T > where T : Debug { pub(super) x : & 'a T, }
             impl < 'a, T > Output < 'a, T > where T : Debug {
+                #[inline]
                 pub fn as_well_as < U > (self, y : & 'a U) -> as_well_as :: Output :: < 'a, T, U > {
                     let x = self.x;
                     as_well_as :: Output :: < 'a, T, U > { y, x, }
@@ -239,6 +243,7 @@ pub fn verify_generic_implementations_with_where_clause() {
             }
         }
         impl < T > DoubleWhere < T > where T : Debug {
+            #[inline]
             pub fn consider < 'a > (x : & 'a T) -> consider :: Output :: < 'a, T > {
                 consider :: Output :: < 'a, T > { x, }
             }
@@ -325,6 +330,7 @@ pub fn verify_generic_implementations_with_self_receiver() {
                 pub(super) n : usize,
             }
             impl < 'a, T > Output < 'a, T > where T : Debug {
+                #[inline]
                 pub fn comparing_to < 'b, U > (self, other : & 'b MyVec < U >) -> comparing_to :: Output :: < 'a, 'b, T, U > {
                     let self_ = self.self_;
                     let n = self.n;
@@ -359,6 +365,7 @@ pub fn verify_generic_implementations_with_self_receiver() {
             }
         }
         impl < T > MyVec < T > where T : Debug {
+            #[inline]
             pub fn take_at_most < 'a > (& 'a self, n : usize) -> take_at_most :: Output :: < 'a, T > {
                 take_at_most :: Output :: < 'a, T > { self_ : self, n, }
             }

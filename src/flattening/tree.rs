@@ -30,7 +30,8 @@ mod tests {
 
         asserts::equivalent!(
             output.to_string().as_str(),
-            "pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
+            "# [inline]
+            pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
                 first :: Output :: < 'a > { text , uuid , }
             }
             # [doc = \"Intermediary module for partial method chain [`first`](fn@first)`(…).…`\"]
@@ -46,6 +47,7 @@ mod tests {
                     pub (super) uuid : Uuid ,
                 }
                 impl < 'a > Output < 'a > {
+                    # [inline]
                     pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < 'a , T > {
                         let text = self . text ;
                         let uuid = self . uuid ;

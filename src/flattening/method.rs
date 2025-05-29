@@ -12,6 +12,7 @@ use super::{
     prelude::produce_method_prelude,
 };
 
+// #[inline]
 // pub fn ⟨name⟩⟨generics⟩(self, ⟨args⟩) -> ⟨name⟩::Output ⟨generics⟩ {
 //   let ⟨field1⟩ = self.⟨field1⟩;
 //   …
@@ -133,13 +134,15 @@ mod tests {
         assert_eq!(3, method_data.len());
         asserts::equivalent!(
             method_data[0].to_string().as_str(),
-            "pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
+            "# [inline]
+            pub (crate) fn first < 'a > (text : & 'a str , uuid : Uuid) -> first :: Output :: < 'a > {
                 first :: Output :: < 'a > { text , uuid , }
             }"
         );
         asserts::equivalent!(
             method_data[1].to_string().as_str(),
-            "pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < 'a , T > {
+            "# [inline]
+            pub fn second < T > (self , n : & 'a mut T) -> second :: Output :: < 'a , T > {
                 let text = self . text ;
                 let uuid = self . uuid ;
                 second :: Output :: < 'a , T > { n , text , uuid , }

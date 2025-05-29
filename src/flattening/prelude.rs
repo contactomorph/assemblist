@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 
 use crate::model::prelude::Prelude;
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 
 // ⟨attr⟩ ⟨visibility⟩
 //
@@ -20,17 +20,21 @@ pub fn produce_module_prelude(prelude: &Prelude, tokens: &mut TokenStream, depth
     }
 }
 
-// ⟨attr⟩ ⟨visibility⟩ ⟨?async⟩
+// ⟨?#[inline]⟩ ⟨attr⟩ ⟨visibility⟩ ⟨?async⟩
 //
 // ∨
 //
-// pub ⟨?async⟩
+// ⟨?#[inline]⟩ pub ⟨?async⟩
 pub fn produce_method_prelude(
     prelude: &Prelude,
     tokens: &mut TokenStream,
     depth: usize,
     is_deepest: bool,
 ) {
+    if !is_deepest {
+        quote! { #[inline] }.to_tokens(tokens);
+    }
+
     if depth == 0 {
         prelude.attr_block.to_tokens(tokens);
         prelude.vis.to_tokens(tokens);
